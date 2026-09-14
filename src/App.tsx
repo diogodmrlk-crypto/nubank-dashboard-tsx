@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, ChevronRight, Eye, EyeOff, HelpCircle, Home, ImagePlus, MessageCircle, MoreHorizontal, Pencil, Plus, Search, ShoppingBag, WalletCards, X } from 'lucide-react'
-
-const purple = '#591E8C'
+import type { ChangeEvent } from 'react'
+import { ChevronRight, HelpCircle, MoreHorizontal, Plus, X } from 'lucide-react'
 
 type EditKey = 'name' | 'balance' | 'invoice' | 'limit' | 'loan'
 type Values = { name: string; balance: string; invoice: string; limit: string; loan: string }
@@ -21,18 +20,23 @@ const cards = [
   ['https://i.imgur.com/8fCMzeO.jpeg', 'Traga seus dados', 'Mais chances de limites e produtos com a sua cara.', 'Saiba mais'],
 ]
 
+const bottomIcons = {
+  home: 'https://i.imgur.com/V8XplLz.png',
+  money: 'https://i.imgur.com/L64YZdo.png',
+  planning: 'https://i.imgur.com/FlL60GN.png',
+  store: 'https://i.imgur.com/JCmXscK.png',
+}
+
 function EditDialog({ kind, value, onClose, onSave }: { kind: EditKey; value: string; onClose: () => void; onSave: (value: string) => void }) {
   const [draft, setDraft] = useState(value)
   const inputRef = useRef<HTMLInputElement>(null)
   const labels: Record<EditKey, string> = { name: 'Nome', balance: 'Saldo em conta', invoice: 'Valor da fatura', limit: 'Limite disponível', loan: 'Valor do empréstimo' }
   const isName = kind === 'name'
   useEffect(() => { inputRef.current?.focus(); inputRef.current?.select() }, [])
-  const submit = () => { if (draft.trim()) { onSave(draft.trim()); onClose() } }
   return <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-    <form className="edit-dialog" onSubmit={(e) => { e.preventDefault(); submit() }}>
+    <form className="edit-dialog" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) { onSave(draft.trim()); onClose() } }}>
       <button type="button" className="dialog-close" onClick={onClose} aria-label="Fechar"><X size={21} /></button>
-      <span className="eyebrow">Editar informação</span>
-      <h2>{labels[kind]}</h2>
+      <span className="eyebrow">Editar informação</span><h2>{labels[kind]}</h2>
       <label className="field-label" htmlFor="edit-field">Digite o novo valor</label>
       <div className="edit-field-wrap"><span>{isName ? '' : 'R$ '}</span><input ref={inputRef} id="edit-field" inputMode={isName ? 'text' : 'decimal'} value={draft} onChange={(e) => setDraft(e.target.value)} /></div>
       <button className="primary-btn" type="submit">Salvar</button>
@@ -41,38 +45,41 @@ function EditDialog({ kind, value, onClose, onSave }: { kind: EditKey; value: st
 }
 
 function App() {
-  const [values, setValues] = useState<Values>(() => {
-    const saved = localStorage.getItem('nubank-values')
-    return saved ? JSON.parse(saved) : { name: 'Diogo', balance: '1.396,90', invoice: '0,00', limit: '5.000,00', loan: '0,00' }
-  })
+  const [values, setValues] = useState<Values>(() => { const saved = localStorage.getItem('nubank-values'); return saved ? JSON.parse(saved) : { name: 'Diogo', balance: '1.396,90', invoice: '0,00', limit: '5.000,00', loan: '0,00' } })
+  const [profileImage, setProfileImage] = useState(() => localStorage.getItem('nubank-profile-image') || '')
   const [showBalance, setShowBalance] = useState(true)
   const [edit, setEdit] = useState<EditKey | null>(null)
-  const [tab, setTab] = useState('home')
-  const [toast, setToast] = useState('')
+  const [tab, setTab] = useState<keyof typeof bottomIcons>('home')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { localStorage.setItem('nubank-values', JSON.stringify(values)) }, [values])
+  useEffect(() => { profileImage ? localStorage.setItem('nubank-profile-image', profileImage) : localStorage.removeItem('nubank-profile-image') }, [profileImage])
   useEffect(() => { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => undefined) }, [])
   const update = (key: EditKey, value: string) => setValues((current) => ({ ...current, [key]: value }))
-  const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2200) }
+  const chooseProfileImage = () => fileInputRef.current?.click()
+  const onProfileImageChange = (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setProfileImage(String(reader.result)); reader.readAsDataURL(file); event.target.value = '' }
 
   return <div className="app-shell">
     <header className="topbar">
-      <button className="profile" onClick={() => setEdit('name')} aria-label="Editar nome"><div className="avatar"><ImagePlus size={21} /></div><span>Olá, <strong>{values.name}</strong></span></button>
-      <div className="top-actions"><button onClick={() => setShowBalance((v) => !v)} aria-label="Mostrar ou ocultar saldo">{showBalance ? <Eye size={22} /> : <EyeOff size={22} />}</button><button onClick={() => notify('Ajuda disponível em breve')} aria-label="Ajuda"><HelpCircle size={22} /></button><button onClick={() => notify('Você não tem novas mensagens')} aria-label="Mensagens"><Bell size={22} /></button></div>
+      <div className="profile-block">
+        <button className="avatar-button" onClick={chooseProfileImage} aria-label="Alterar foto de perfil"><div className="avatar">{profileImage ? <img src={profileImage} alt="Perfil" /> : <span className="profile-glyph">♙</span>}</div><span className="avatar-dot" /></button>
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden-file" onChange={onProfileImageChange} />
+        <div className="top-actions"><button onClick={() => setShowBalance((v) => !v)} aria-label="Mostrar ou ocultar saldo"><img src={showBalance ? 'https://i.imgur.com/ZdPpdvo.png' : 'https://i.imgur.com/ZeSsZ4i.png'} alt="" /></button><button aria-label="Ajuda"><HelpCircle size={22} /></button><button aria-label="Mensagens"><img src="https://i.imgur.com/7F6wazV.png" alt="" /></button></div>
+        <button className="greeting" onClick={() => setEdit('name')}>Olá, <strong>{values.name}</strong></button>
+      </div>
     </header>
 
     <main>
-      <section className="balance-section" onClick={() => setEdit('balance')}><div className="section-heading"><h2>Saldo em conta</h2><MoreHorizontal size={19} /></div><div className="amount">{showBalance ? <>R$ {values.balance}</> : '••••'}</div><button className="pill-btn" onClick={(e) => { e.stopPropagation(); notify('Vincule sua conta para continuar') }}><Plus size={14} /> Vincular conta</button></section>
-      <section className="shortcut-row">{shortcuts.map((shortcut) => <button className="shortcut" key={shortcut.label} onClick={() => notify(shortcut.label.replace('\n', ' ') + ' em breve')}><span className="shortcut-icon"><img src={shortcut.icon} alt="" />{shortcut.tag && <small>{shortcut.tag}</small>}</span><span>{shortcut.label}</span></button>)}</section>
-      <section className="promo" onClick={() => notify('Área Pix em breve')}><div className="pix-symbol">✦</div><div><strong>Pix</strong><span>Faça tudo pelo Pix</span></div><ChevronRight size={19} /></section>
+      <section className="balance-section" onClick={() => setEdit('balance')}><div className="section-heading"><h2>Saldo em conta</h2><MoreHorizontal size={19} /></div><div className="amount">{showBalance ? <>R$ {values.balance}</> : '••••'}</div><button className="pill-btn" onClick={(e) => e.stopPropagation()}><Plus size={14} /> Vincular conta</button></section>
+      <section className="shortcut-row">{shortcuts.map((shortcut) => <div className="shortcut" key={shortcut.label}><span className="shortcut-icon"><img src={shortcut.icon} alt={shortcut.label.replace('\n', ' ')} />{shortcut.tag && <small>{shortcut.tag}</small>}</span><span>{shortcut.label}</span></div>)}</section>
+      <section className="promo"><img src="https://i.imgur.com/DylQjZr.png" alt="Meus cartões" /><div><strong>Meus cartões</strong><span>Acesse seus cartões Nubank</span></div><ChevronRight size={19} /></section>
       <section className="section-card" onClick={() => setEdit('invoice')}><div className="section-heading"><h2>Cartão de crédito</h2><MoreHorizontal size={19} /></div><span className="muted">Fatura atual</span><div className="card-amount">{showBalance ? <>R$ {values.invoice}</> : '••••'}</div><span className="muted clickable" onClick={(e) => { e.stopPropagation(); setEdit('limit') }}>Limite disponível: {showBalance ? `R$ ${values.limit}` : '••••'}</span></section>
-      <section className="loan-section"><div><span className="muted">Valor disponível de até</span><button className="link-value" onClick={() => setEdit('loan')}>{showBalance ? `R$ ${values.loan}` : '••••'}</button></div><button className="loan-btn" onClick={() => notify('Simulação de empréstimo em breve')}>Simular empréstimo <ChevronRight size={17} /></button></section>
-      <section className="discover"><h2>Descubra mais</h2><div className="card-scroller">{cards.map(([image, title, description, cta]) => <article className="discover-card" key={title}><img src={image} alt="" /><div><h3>{title}</h3><p>{description}</p><button onClick={() => notify(`${title}: em breve`)}>{cta}</button></div></article>)}</div></section>
+      <section className="loan-section"><div><span className="muted">Valor disponível de até</span><button className="link-value" onClick={() => setEdit('loan')}>{showBalance ? `R$ ${values.loan}` : '••••'}</button></div></section>
+      <section className="discover"><h2>Descubra mais</h2><div className="card-scroller">{cards.map(([image, title, description, cta]) => <article className="discover-card" key={title}><img src={image} alt="" /><div><h3>{title}</h3><p>{description}</p><button>{cta}</button></div></article>)}</div></section>
     </main>
 
-    <nav className="bottom-nav"><button className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}><Home size={21} /><span>Início</span></button><button className={tab === 'money' ? 'active' : ''} onClick={() => { setTab('money'); notify('Dinheiro em breve') }}><WalletCards size={21} /><span>Dinheiro</span></button><button className={tab === 'planning' ? 'active' : ''} onClick={() => { setTab('planning'); notify('Planejamento em breve') }}><Search size={21} /><span>Planejamento</span></button><button className={tab === 'store' ? 'active' : ''} onClick={() => { setTab('store'); notify('Loja em breve') }}><ShoppingBag size={21} /><span>Loja</span></button></nav>
+    <nav className="bottom-nav" aria-label="Navegação principal">{(Object.keys(bottomIcons) as Array<keyof typeof bottomIcons>).map((key) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)} aria-label={key}><img src={bottomIcons[key]} alt="" /></button>)}</nav>
     {edit && <EditDialog kind={edit} value={values[edit]} onClose={() => setEdit(null)} onSave={(value) => update(edit, value)} />}
-    {toast && <div className="toast"><MessageCircle size={16} />{toast}</div>}
   </div>
 }
 
