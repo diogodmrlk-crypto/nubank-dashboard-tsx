@@ -45,15 +45,25 @@ function EditDialog({ kind, value, onClose, onSave }: { kind: EditKey; value: st
 }
 
 function App() {
-  const [values, setValues] = useState<Values>(() => { const saved = localStorage.getItem('nubank-values'); return saved ? JSON.parse(saved) : { name: 'Diogo', balance: '1.396,90', invoice: '0,00', limit: '5.000,00', loan: '0,00' } })
-  const [profileImage, setProfileImage] = useState(() => localStorage.getItem('nubank-profile-image') || '')
+  const defaults: Values = { name: 'Diogo', balance: '1.396,90', invoice: '0,00', limit: '5.000,00', loan: '0,00' }
+  const [values, setValues] = useState<Values>(() => {
+    try {
+      const saved = localStorage.getItem('nubank-values')
+      if (!saved) return defaults
+      const parsed = JSON.parse(saved) as Partial<Values>
+      return { ...defaults, ...parsed }
+    } catch {
+      return defaults
+    }
+  })
+  const [profileImage, setProfileImage] = useState(() => { try { return localStorage.getItem('nubank-profile-image') || '' } catch { return '' } })
   const [showBalance, setShowBalance] = useState(true)
   const [edit, setEdit] = useState<EditKey | null>(null)
   const [tab, setTab] = useState<keyof typeof bottomIcons>('home')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { localStorage.setItem('nubank-values', JSON.stringify(values)) }, [values])
-  useEffect(() => { profileImage ? localStorage.setItem('nubank-profile-image', profileImage) : localStorage.removeItem('nubank-profile-image') }, [profileImage])
+  useEffect(() => { try { localStorage.setItem('nubank-values', JSON.stringify(values)) } catch { /* storage is optional */ } }, [values])
+  useEffect(() => { try { profileImage ? localStorage.setItem('nubank-profile-image', profileImage) : localStorage.removeItem('nubank-profile-image') } catch { /* storage is optional */ } }, [profileImage])
   useEffect(() => { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => undefined) }, [])
   const update = (key: EditKey, value: string) => setValues((current) => ({ ...current, [key]: value }))
   const chooseProfileImage = () => fileInputRef.current?.click()
