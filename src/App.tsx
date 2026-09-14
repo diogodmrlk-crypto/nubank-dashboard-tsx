@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { ArrowLeft, Banknote, CalendarClock, ChevronRight, Clipboard, HandCoins, HelpCircle, KeyRound, MoreHorizontal, QrCode, Search, SlidersHorizontal, Plus, Wallet, X, Zap } from 'lucide-react'
+import { ArrowDownToLine, ArrowLeft, ArrowUpRight, Calendar, ChevronRight, CircleDollarSign, CircleQuestionMark, Copy, HandCoins, HelpCircle, Key, MoreHorizontal, QrCode, Search, SlidersHorizontal, Plus, RefreshCcw, X, Zap } from 'lucide-react'
 
 type EditKey = 'name' | 'balance' | 'invoice' | 'limit' | 'loan'
 type Values = { name: string; balance: string; invoice: string; limit: string; loan: string }
@@ -45,30 +45,31 @@ function EditDialog({ kind, value, onClose, onSave }: { kind: EditKey; value: st
 }
 
 const pixActions = [
-  { label: 'Transferir', icon: HandCoins }, { label: 'Programar', icon: CalendarClock }, { label: 'Ler QR code', icon: QrCode },
-  { label: 'Pix Copia e Cola', icon: Clipboard }, { label: 'Cobrar', icon: Banknote }, { label: 'Depositar', icon: Wallet },
+  { label: 'Transferir', icon: ArrowUpRight }, { label: 'Programar', icon: Calendar }, { label: 'Ler QR code', icon: QrCode },
+  { label: 'Pix Copia e Cola', icon: Copy }, { label: 'Cobrar', icon: CircleDollarSign }, { label: 'Depositar', icon: ArrowDownToLine },
 ]
-const pixPreferences = [{ label: 'Pix automático', icon: Zap }, { label: 'Registrar ou trazer chaves', icon: KeyRound }, { label: 'Meus limites', icon: SlidersHorizontal }]
+const pixPreferences = [{ label: 'Pix automático', icon: RefreshCcw }, { label: 'Registrar ou trazer chaves', icon: Key }, { label: 'Meus limites', icon: SlidersHorizontal }]
 
 function TransferFlow({ onBack, onClose }: { onBack: () => void; onClose: () => void }) {
   const [step, setStep] = useState<'selection' | 'amount' | 'confirm' | 'success'>('selection')
   const [recipient, setRecipient] = useState('')
   const [amount, setAmount] = useState('0,00')
   const contacts = [{ initials: 'FV', name: 'Fábio Vieira', bank: 'RECARGAP...' }, { initials: 'FD', name: 'Flávio Duarto', bank: 'BANCO INT...' }, { initials: 'LF', name: 'Luís Fernando', bank: 'BCO C6 S.A.' }]
+  const allContacts = [{ info: '59.429.182 Gucci Shopping Plazza', initials: '' }, { info: '61.315.182 Zara Shopping Plazza', initials: '' }, { info: 'Allan Almada Cunha', initials: 'AA' }, { info: 'Bruno Henrique', initials: 'BH' }]
   if (step === 'amount') return <div className="pix-screen"><div className="pix-header"><button onClick={() => setStep('selection')}><ArrowLeft /></button></div><div className="pix-content transfer-content"><span className="muted">Transferir para</span><h1>{recipient || 'DESTINATÁRIO'}</h1><label className="pix-label">Valor</label><div className="pix-amount"><span>R$</span><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></div><button className="pix-primary" onClick={() => setStep('confirm')}>Continuar</button></div></div>
   if (step === 'confirm') return <div className="pix-screen"><div className="pix-header"><button onClick={() => setStep('amount')}><ArrowLeft /></button></div><div className="pix-content transfer-content"><h1>Você vai enviar</h1><div className="confirmation-card"><span className="muted">Destinatário</span><strong>{recipient}</strong><span className="muted">Valor</span><strong>R$ {amount}</strong></div><button className="pix-primary" onClick={() => setStep('success')}>Confirmar transferência</button></div></div>
   if (step === 'success') return <div className="pix-screen success-screen"><div className="success-mark">✓</div><h1>Transferência realizada</h1><p>Você enviou R$ {amount} para {recipient}.</p><button className="pix-primary" onClick={onClose}>Concluir</button></div>
-  return <div className="pix-screen"><div className="pix-header"><button onClick={onBack}><ArrowLeft /></button><button><MoreHorizontal /></button></div><div className="pix-content"><h1>Para quem você quer<br />transferir?</h1><label className="pix-label">Insira o dado de quem vai receber</label><div className="pix-search"><input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="Nome, CPF/CNPJ ou chave Pix" /><Search size={22} /></div><h2>Você sempre costuma pagar</h2><div className="contact-row">{contacts.map((contact) => <button key={contact.name} onClick={() => { setRecipient(contact.name); setStep('amount') }}><span>{contact.initials}</span><strong>{contact.name}</strong><small>{contact.bank}</small></button>)}</div><button className="pix-primary" disabled={!recipient.trim()} onClick={() => setStep('amount')}>Continuar</button></div></div>
+  return <div className="pix-screen"><div className="pix-header"><button onClick={onBack}><ArrowLeft /></button><button><MoreHorizontal /></button></div><div className="pix-content"><h1>Para quem você quer<br />transferir?</h1><label className="pix-label">Insira o dado de quem vai receber</label><div className="pix-search"><input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="Nome, CPF/CNPJ ou chave Pix" /><Search size={22} /></div><h2>Você sempre costuma pagar</h2><div className="contact-row">{contacts.map((contact) => <button key={contact.name} onClick={() => { setRecipient(contact.name); setStep('amount') }}><span>{contact.initials}</span><strong>{contact.name}</strong><small>{contact.bank}</small></button>)}</div><h2>Todos os seus contatos</h2><div className="all-contacts">{allContacts.map((contact) => <button key={contact.info} onClick={() => { setRecipient(contact.info); setStep('amount') }}><span>{contact.initials || '⌁'}</span><strong>{contact.info}</strong></button>)}</div>{recipient.trim() && <button className="pix-floating" onClick={() => setStep('amount')}><ArrowUpRight size={18} strokeWidth={2.5} /></button>}</div></div>
 }
 
 function PixArea({ onClose }: { onClose: () => void }) {
   const [transfer, setTransfer] = useState(false)
   if (transfer) return <TransferFlow onBack={() => setTransfer(false)} onClose={onClose} />
-  return <div className="pix-screen"><div className="pix-header"><button onClick={onClose}><ArrowLeft /></button><button><MoreHorizontal /></button></div><div className="pix-content"><h1>Área Pix</h1><p className="pix-description">Envie e receba pagamentos a qualquer hora e dia da semana, sem pagar nada por isso.</p><div className="pix-grid">{pixActions.map(({ label, icon: Icon }) => <div key={label}><button onClick={() => label === 'Transferir' && setTransfer(true)}><Icon size={26} strokeWidth={1.5} /></button><span>{label}</span></div>)}</div><h2>Preferências</h2><div className="pix-preferences">{pixPreferences.map(({ label, icon: Icon }) => <button key={label}><span><Icon size={22} />{label}</span><ChevronRight size={20} /></button>)}</div><h2 className="support-title">Suporte</h2></div></div>
+  return <div className="pix-screen"><div className="pix-header"><button onClick={onClose}><X size={28} strokeWidth={1.5} /></button><button><CircleQuestionMark size={24} strokeWidth={1.5} /></button></div><div className="pix-content"><h1>Área Pix</h1><p className="pix-description">Envie e receba pagamentos a qualquer hora e dia da semana, sem pagar nada por isso.</p><div className="pix-grid">{pixActions.map(({ label, icon: Icon }) => <div key={label}><button onClick={() => label === 'Transferir' && setTransfer(true)}><Icon size={26} strokeWidth={1.5} /></button><span>{label}</span></div>)}</div><h2>Preferências</h2><div className="pix-preferences">{pixPreferences.map(({ label, icon: Icon }) => <button key={label}><span><Icon size={22} strokeWidth={1.5} />{label}</span><ChevronRight size={20} /></button>)}</div><h2 className="support-title">Suporte</h2></div></div>
 }
 
 function App() {
-  const defaults: Values = { name: 'Diogo', balance: '1.396,90', invoice: '0,00', limit: '5.000,00', loan: '0,00' }
+  const defaults: Values = { name: 'Seu Nome', balance: '10.000,00', invoice: '0,00', limit: '5.000,00', loan: '50.000,00' }
   const [values, setValues] = useState<Values>(() => {
     try {
       const saved = localStorage.getItem('nubank-values')
