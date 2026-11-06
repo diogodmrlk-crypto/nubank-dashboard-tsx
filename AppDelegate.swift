@@ -16,14 +16,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         webView = WKWebView(frame: window!.bounds, configuration: config)
         webView?.isOpaque = false
-        webView?.backgroundColor = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0) // Fundo escuro do Nubank
+        webView?.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1.0) // Fundo escuro
+        
+        // ISSO REMOVE AS BORDAS E PREENCHE A TELA TODA
+        webView?.scrollView.contentInsetAdjustmentBehavior = .never 
+        webView?.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         
         // Procura o index.html na raiz do app
         if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html") {
             let url = URL(fileURLWithPath: htmlPath)
             webView?.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
-        } else {
-            print("ERRO FATAL: index.html nao encontrado!")
         }
         
         let viewController = UIViewController()
