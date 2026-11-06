@@ -27,9 +27,18 @@ jobs:
 
       - name: Setup Capacitor iOS
         run: |
-          # Agora ele vai ler o capacitor.config.cjs automaticamente
           npx cap add ios || true
           npx cap sync ios
+
+      - name: Inject Network & Permissions to Info.plist
+        run: |
+          PLIST_PATH="ios/App/App/Info.plist"
+          # Permite conexões de rede (evita tela branca no GBox)
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" $PLIST_PATH || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" $PLIST_PATH || true
+          
+          # Permissões padrão de câmera (caso o app peça)
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Precisamos da câmera para ler QR Codes'" $PLIST_PATH || true
 
       - name: Install CocoaPods
         run: |
@@ -49,12 +58,18 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Package IPA
+      - name: Clean up metadata and Package IPA
         run: |
           set -e
+          # Remove lixos do Mac que fazem o GBox falhar
+          find $RUNNER_TEMP/App.xcarchive -name ".DS_Store" -delete
+          find $RUNNER_TEMP/App.xcarchive -name "_MACOSX" -delete
+          
           mkdir -p $RUNNER_TEMP/Payload
           cp -R $RUNNER_TEMP/App.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
           cd $RUNNER_TEMP
+          
+          # Empacota o IPA
           zip -r NubankDashboard.ipa Payload
 
       - name: Upload IPA
