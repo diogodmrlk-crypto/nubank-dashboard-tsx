@@ -27,9 +27,8 @@ jobs:
 
       - name: Setup Capacitor iOS
         run: |
-          # Gera a pasta ios caso ela não exista no repositório
+          # Agora ele vai ler o capacitor.config.cjs automaticamente
           npx cap add ios || true
-          # Sincroniza a pasta dist gerada pelo Vite para dentro do projeto iOS
           npx cap sync ios
 
       - name: Install CocoaPods
