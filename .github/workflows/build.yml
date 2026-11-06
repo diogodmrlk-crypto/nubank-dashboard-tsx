@@ -29,13 +29,10 @@ jobs:
 
       - name: Prepare iOS Files
         run: |
-          # 1. Remove o index.html da raiz para não dar conflito
           rm -f index.html
-          
-          # 2. Copia o index.html ÚNICO gerado pelo Vite (tudo embutido)
           cp dist/index.html .
           
-          # 3. Cria o Info.plist
+          # Info.plist ATUALIZADO COM FACE ID
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -60,11 +57,13 @@ jobs:
               <key>UIStatusBarHidden</key><true/>
               <key>UILaunchScreen</key>
               <dict/>
+              <!-- AQUI ESTÁ A CHAVE DO FACE ID -->
+              <key>NSFaceIDUsageDescription</key>
+              <string>Use o Face ID para acessar sua conta com segurança.</string>
           </dict>
           </plist>
           EOF
 
-          # 4. Cria o project.yml
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
@@ -87,7 +86,6 @@ jobs:
                   ASSETCATALOG_COMPILER_APPICON_NAME: ""
           EOF
 
-          # 5. Gera o projeto Xcode
           xcodegen generate
 
       - name: Build Archive (No Signing)
