@@ -10,11 +10,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let webView = WKWebView(frame: window!.bounds)
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.isOpaque = false
-        webView.backgroundColor = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0) // Cor de fundo escura
+        webView.backgroundColor = UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0)
         
-        // Carrega o index.html que está na pasta dist
+        // Procura o index.html na raiz do Bundle
         if let url = Bundle.main.url(forResource: "index", withExtension: "html") {
-            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            let readAccessUrl = url.deletingLastPathComponent()
+            webView.loadFileURL(url, allowingReadAccessTo: readAccessUrl)
+        } else {
+            print("ERRO: index.html não encontrado no bundle")
         }
         
         let viewController = UIViewController()
