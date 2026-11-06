@@ -21,6 +21,7 @@ jobs:
       - name: Install Dependencies and Build Vite
         run: |
           npm install
+          npm install -D vite-plugin-singlefile
           npm run build
 
       - name: Install XcodeGen
@@ -31,10 +32,10 @@ jobs:
           # 1. Remove o index.html da raiz para não dar conflito
           rm -f index.html
           
-          # 2. Copia os arquivos compilados do Vite para a raiz (onde o Xcode vai ler)
-          cp -R dist/* .
+          # 2. Copia o index.html ÚNICO gerado pelo Vite (o singlefile junta tudo dentro dele)
+          cp dist/index.html .
           
-          # 3. Cria o Info.plist correto e com as permissões necessárias
+          # 3. Cria o Info.plist
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -59,7 +60,7 @@ jobs:
           </plist>
           EOF
 
-          # 4. Cria o project.yml (XcodeGen) apontando para os arquivos certos
+          # 4. Cria o project.yml (Apenas o index.html como source)
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
@@ -72,8 +73,6 @@ jobs:
               sources:
                 - path: AppDelegate.swift
                 - path: index.html
-                - path: assets
-                  optional: true
               settings:
                 base:
                   PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp
