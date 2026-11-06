@@ -1,10 +1,11 @@
 {
-  "appId": "com.nubank.dashboard",
+  "appId": "com.seudispositivo.nubankclone",
   "appName": "Nubank",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "ios": {
     "contentInset": "always",
-    "backgroundColor": "#1C1C1E"
+    "backgroundColor": "#1C1C1E",
+    "limitsNavigationsToAppBoundDomains": false
   }
 }
