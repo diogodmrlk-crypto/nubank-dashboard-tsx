@@ -1,4 +1,4 @@
-name: Build Nubank TSX to IPA
+name: Build Native iOS Wrapper
 
 on:
   push:
@@ -17,63 +17,125 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Install Dependencies
-        run: npm install
-
-      - name: Build React App (Vite)
-        run: npm run build
-
-      - name: Setup Capacitor iOS
+      - name: Install Dependencies and Build Vite
         run: |
-          npx cap add ios || true
-          npx cap sync ios
+          npm install
+          npm run build
 
-      - name: Inject Network & Permissions to Info.plist
-        run: |
-          PLIST_PATH="ios/App/App/Info.plist"
-          # Permite conexões de rede (evita tela branca no GBox)
-          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" $PLIST_PATH || true
-          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" $PLIST_PATH || true
-          
-          # Permissões padrão de câmera (caso o app peça)
-          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Precisamos da câmera para ler QR Codes'" $PLIST_PATH || true
+      - name: Install XcodeGen
+        run: brew install xcodegen
 
-      - name: Install CocoaPods
+      - name: Create Native Wrapper Files
         run: |
-          cd ios/App
-          pod install
+          # 1. Cria o AppDelegate para carregar o site
+          cat << 'EOF' > AppDelegate.swift
+          import UIKit
+          import WebKit
+
+          @main
+          class AppDelegate: UIResponder, UIApplicationDelegate {
+              var window: UIWindow?
+              func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+                  window = UIWindow(frame: UIScreen.main.bounds)
+                  let webView = WKWebView(frame: window!.bounds)
+                  webView.scrollView.contentInsetAdjustmentBehavior = .never
+                  
+                  if let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "dist") {
+                      webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+                  }
+                  
+                  let viewController = UIViewController()
+                  viewController.view = webView
+                  window?.rootViewController = viewController
+                  window?.makeKeyAndVisible()
+                  return true
+              }
+          }
+          EOF
+
+          # 2. Cria o Info.plist correto
+          cat << 'EOF' > Info.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleDevelopmentRegion</key><string>pt_BR</string>
+              <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+              <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+              <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+              <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
+              <key>CFBundleDisplayName</key><string>Nubank</string>
+              <key>CFBundlePackageType</key><string>APPL</string>
+              <key>CFBundleShortVersionString</key><string>1.0</string>
+              <key>CFBundleVersion</key><string>1</string>
+              <key>LSRequiresIPhoneOS</key><true/>
+              <key>UILaunchStoryboardName</key><string></string>
+              <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
+              <key>UISupportedInterfaceOrientations</key>
+              <array>
+                  <string>UIInterfaceOrientationPortrait</string>
+              </array>
+              <key>NSAppTransportSecurity</key>
+              <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
+          </dict>
+          </plist>
+          EOF
+
+          # 3. Cria a configuração do XcodeGen (Gera o .xcodeproj automaticamente)
+          cat << 'EOF' > project.yml
+          name: NubankApp
+          options:
+            bundleIdPrefix: com.wesley
+          targets:
+            NubankApp:
+              type: application
+              platform: iOS
+              deploymentTarget: "15.0"
+              sources: [AppDelegate.swift]
+              info: Info.plist
+              settings:
+                base:
+                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp
+                  CODE_SIGN_IDENTITY: ""
+                  CODE_SIGNING_REQUIRED: "NO"
+                  CODE_SIGNING_ALLOWED: "NO"
+                  ASSETCATALOG_COMPILER_APPICON_NAME: ""
+          EOF
+
+          # 4. Gera o projeto Xcode
+          xcodegen generate
+
+      - name: Copy Vite Build to iOS Project
+        run: |
+          # Copia a pasta 'dist' gerada pelo Vite para dentro do App nativo
+          mkdir -p NubankApp/dist
+          cp -R dist/* NubankApp/dist/
 
       - name: Build Archive (No Signing)
         run: |
           set -e
-          xcodebuild -workspace ios/App/App.xcworkspace \
-            -scheme App \
+          xcodebuild -project NubankApp.xcodeproj \
+            -scheme NubankApp \
             -sdk iphoneos \
             -configuration Release \
             -archivePath $RUNNER_TEMP/App.xcarchive \
             archive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO
 
-      - name: Clean up metadata and Package IPA
+      - name: Package IPA
         run: |
           set -e
-          # Remove lixos do Mac que fazem o GBox falhar
-          find $RUNNER_TEMP/App.xcarchive -name ".DS_Store" -delete
-          find $RUNNER_TEMP/App.xcarchive -name "_MACOSX" -delete
-          
           mkdir -p $RUNNER_TEMP/Payload
           cp -R $RUNNER_TEMP/App.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
           cd $RUNNER_TEMP
-          
-          # Empacota o IPA
-          zip -r NubankDashboard.ipa Payload
+          zip -r NubankNative.ipa Payload
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Nubank-Unsigned-IPA
-          path: ${{ runner.temp }}/NubankDashboard.ipa
+          name: Nubank-Native-IPA
+          path: ${{ runner.temp }}/NubankNative.ipa
