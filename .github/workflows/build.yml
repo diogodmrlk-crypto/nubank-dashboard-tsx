@@ -26,8 +26,40 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Create XcodeGen project.yml
+      - name: Prepare iOS Files
         run: |
+          # 1. Remove o index.html da raiz para não dar conflito
+          rm -f index.html
+          
+          # 2. Copia os arquivos compilados do Vite para a raiz (onde o Xcode vai ler)
+          cp -R dist/* .
+          
+          # 3. Cria o Info.plist correto e com as permissões necessárias
+          cat << 'EOF' > Info.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleDevelopmentRegion</key><string>pt_BR</string>
+              <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+              <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+              <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+              <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
+              <key>CFBundleDisplayName</key><string>Nubank</string>
+              <key>CFBundlePackageType</key><string>APPL</string>
+              <key>CFBundleShortVersionString</key><string>1.0</string>
+              <key>CFBundleVersion</key><string>1</string>
+              <key>LSRequiresIPhoneOS</key><true/>
+              <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
+              <key>UISupportedInterfaceOrientations</key>
+              <array><string>UIInterfaceOrientationPortrait</string></array>
+              <key>NSAppTransportSecurity</key>
+              <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
+          </dict>
+          </plist>
+          EOF
+
+          # 4. Cria o project.yml (XcodeGen) apontando para os arquivos certos
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
@@ -37,8 +69,11 @@ jobs:
               type: application
               platform: iOS
               deploymentTarget: "15.0"
-              sources: [AppDelegate.swift]
-              resources: [dist] # Diz ao Xcode para incluir a pasta dist
+              sources:
+                - path: AppDelegate.swift
+                - path: index.html
+                - path: assets
+                  optional: true
               settings:
                 base:
                   PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp
@@ -49,14 +84,8 @@ jobs:
                   ASSETCATALOG_COMPILER_APPICON_NAME: ""
           EOF
 
-      - name: Generate Xcode Project
-        run: xcodegen generate
-
-      - name: Flatten dist folder for iOS
-        run: |
-          # Move os arquivos da dist para a raiz para facilitar a leitura do Swift
-          cp -R dist/* .
-          rm -rf dist
+          # 5. Gera o projeto Xcode
+          xcodegen generate
 
       - name: Build Archive (No Signing)
         run: |
