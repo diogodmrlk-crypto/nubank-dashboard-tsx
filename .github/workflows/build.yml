@@ -1,0 +1,65 @@
+name: Build Nubank TSX to IPA
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build React App (Vite)
+        run: npm run build
+
+      - name: Setup Capacitor iOS
+        run: |
+          # Gera a pasta ios caso ela não exista no repositório
+          npx cap add ios || true
+          # Sincroniza a pasta dist gerada pelo Vite para dentro do projeto iOS
+          npx cap sync ios
+
+      - name: Install CocoaPods
+        run: |
+          cd ios/App
+          pod install
+
+      - name: Build Archive (No Signing)
+        run: |
+          set -e
+          xcodebuild -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath $RUNNER_TEMP/App.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package IPA
+        run: |
+          set -e
+          mkdir -p $RUNNER_TEMP/Payload
+          cp -R $RUNNER_TEMP/App.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
+          cd $RUNNER_TEMP
+          zip -r NubankDashboard.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nubank-Unsigned-IPA
+          path: ${{ runner.temp }}/NubankDashboard.ipa
