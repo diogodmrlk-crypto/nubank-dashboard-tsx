@@ -32,7 +32,7 @@ jobs:
           rm -f index.html
           cp dist/index.html .
           
-          # Info.plist ATUALIZADO COM FACE ID
+          # Info.plist com a barra de status ATIVADA e FACE ID
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -53,11 +53,14 @@ jobs:
               <array><string>UIInterfaceOrientationPortrait</string></array>
               <key>NSAppTransportSecurity</key>
               <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
+              
+              <!-- CORREÇÃO DA BARRA DE STATUS AQUI -->
               <key>UIViewControllerBasedStatusBarAppearance</key><false/>
-              <key>UIStatusBarHidden</key><true/>
+              <key>UIStatusBarHidden</key><false/>
+              <key>UIStatusBarStyle</key><string>UIStatusBarStyleLightContent</string>
+              
               <key>UILaunchScreen</key>
               <dict/>
-              <!-- AQUI ESTÁ A CHAVE DO FACE ID -->
               <key>NSFaceIDUsageDescription</key>
               <string>Use o Face ID para acessar sua conta com segurança.</string>
           </dict>
