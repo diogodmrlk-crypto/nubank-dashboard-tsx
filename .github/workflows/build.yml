@@ -38,6 +38,7 @@ jobs:
               platform: iOS
               deploymentTarget: "15.0"
               sources: [AppDelegate.swift]
+              resources: [dist] # Diz ao Xcode para incluir a pasta dist
               settings:
                 base:
                   PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp
@@ -51,11 +52,11 @@ jobs:
       - name: Generate Xcode Project
         run: xcodegen generate
 
-      - name: Copy Vite Build to iOS Project
+      - name: Flatten dist folder for iOS
         run: |
-          # Copia o conteúdo da pasta dist para a raiz do build do iOS
-          mkdir -p NubankApp
-          cp -R dist/* NubankApp/
+          # Move os arquivos da dist para a raiz para facilitar a leitura do Swift
+          cp -R dist/* .
+          rm -rf dist
 
       - name: Build Archive (No Signing)
         run: |
