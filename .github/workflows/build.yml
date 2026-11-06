@@ -32,7 +32,7 @@ jobs:
           # 1. Remove o index.html da raiz para não dar conflito
           rm -f index.html
           
-          # 2. Copia o index.html ÚNICO gerado pelo Vite (o singlefile junta tudo dentro dele)
+          # 2. Copia o index.html ÚNICO gerado pelo Vite (tudo embutido)
           cp dist/index.html .
           
           # 3. Cria o Info.plist
@@ -56,11 +56,15 @@ jobs:
               <array><string>UIInterfaceOrientationPortrait</string></array>
               <key>NSAppTransportSecurity</key>
               <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
+              <key>UIViewControllerBasedStatusBarAppearance</key><false/>
+              <key>UIStatusBarHidden</key><true/>
+              <key>UILaunchScreen</key>
+              <dict/>
           </dict>
           </plist>
           EOF
 
-          # 4. Cria o project.yml (Apenas o index.html como source)
+          # 4. Cria o project.yml
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
