@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import LocalAuthentication // Importante para o Face ID
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -16,22 +17,55 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         webView = WKWebView(frame: window!.bounds, configuration: config)
         webView?.isOpaque = false
-        webView?.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1.0) // Fundo escuro
+        webView?.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1.0)
         
-        // ISSO REMOVE AS BORDAS E PREENCHE A TELA TODA
-        webView?.scrollView.contentInsetAdjustmentBehavior = .never 
+        webView?.scrollView.contentInsetAdjustmentBehavior = .never
         webView?.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         
-        // Procura o index.html na raiz do app
-        if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html") {
-            let url = URL(fileURLWithPath: htmlPath)
-            webView?.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
-        }
-        
+        // Cria o ViewController primeiro (com tela de bloqueio fake se quiser)
         let viewController = UIViewController()
         viewController.view = webView
         window?.rootViewController = viewController
         window?.makeKeyAndVisible()
+        
+        // CHAMA O FACE ID AQUI
+        authenticateWithFaceID()
+        
         return true
+    }
+    
+    func authenticateWithFaceID() {
+        let context = LAContext()
+        var error: NSError?
+        
+        // Verifica se o dispositivo suporta biometria
+        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
+            let reason = "Acesse sua conta Nubank com segurança."
+            
+            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, authenticationError in
+                DispatchQueue.main.async {
+                    if success {
+                        // SUCESSO: Carrega o HTML do React
+                        self.loadReactApp()
+                    } else {
+                        // FALHA: O usuário cancelou ou falhou. 
+                        // Opcional: Fechar o app ou mostrar um alerta.
+                        print("Autenticação falhou: \(authenticationError?.localizedDescription ?? "Erro")")
+                    }
+                }
+            }
+        } else {
+            // Dispositivo não tem Face ID (ex: simulador ou iPhone antigo)
+            // Para não travar o app, carrega direto.
+            print("Biometria não disponível. Carregando app...")
+            self.loadReactApp()
+        }
+    }
+    
+    func loadReactApp() {
+        if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html") {
+            let url = URL(fileURLWithPath: htmlPath)
+            webView?.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        }
     }
 }
