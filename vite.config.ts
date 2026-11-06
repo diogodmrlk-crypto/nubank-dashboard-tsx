@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: './', // ISSO É CRUCIAL para o app funcionar no iOS
-  build: { outDir: 'dist' },
+  base: './', // MUITO IMPORTANTE: Faz os caminhos serem relativos (./assets/index.js)
+  build: { 
+    outDir: 'dist',
+    emptyOutDir: true 
+  },
 })
