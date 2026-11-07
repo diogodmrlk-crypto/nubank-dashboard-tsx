@@ -21,7 +21,7 @@ jobs:
       - name: Install Dependencies and Build Vite
         run: |
           npm install
-          npm install -D vite-plugin-singlefile
+          npm install -D vite-plugin-singlefile terser
           npm run build
 
       - name: Install XcodeGen
@@ -32,7 +32,6 @@ jobs:
           rm -f index.html
           cp dist/index.html .
           
-          # Info.plist com FaceID e Barra de Status
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -66,7 +65,6 @@ jobs:
           </plist>
           EOF
 
-          # project.yml incluindo os dois arquivos Swift
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
