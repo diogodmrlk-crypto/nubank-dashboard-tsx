@@ -16,7 +16,6 @@ class LoginViewController: UIViewController {
     func setupUI() {
         view.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1.0)
         
-        // Título
         let titleLabel = UILabel()
         titleLabel.text = "Acesso Restrito"
         titleLabel.font = UIFont.boldSystemFont(ofSize: 24)
@@ -24,7 +23,6 @@ class LoginViewController: UIViewController {
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        // Campo de Texto
         keyTextField.placeholder = "Insira sua Key aqui"
         keyTextField.backgroundColor = UIColor(white: 0.15, alpha: 1.0)
         keyTextField.textColor = .white
@@ -36,7 +34,6 @@ class LoginViewController: UIViewController {
         keyTextField.leftViewMode = .always
         keyTextField.translatesAutoresizingMaskIntoConstraints = false
         
-        // Botão
         loginButton.setTitle("Validar Key", for: .normal)
         loginButton.backgroundColor = UIColor(red: 0.5, green: 0.1, blue: 0.8, alpha: 1.0)
         loginButton.setTitleColor(.white, for: .normal)
@@ -44,7 +41,6 @@ class LoginViewController: UIViewController {
         loginButton.addTarget(self, action: #selector(handleLogin), for: .touchUpInside)
         loginButton.translatesAutoresizingMaskIntoConstraints = false
         
-        // Loading
         activityIndicator.color = .white
         activityIndicator.translatesAutoresizingMaskIntoConstraints = false
         
@@ -78,18 +74,14 @@ class LoginViewController: UIViewController {
         activityIndicator.startAnimating()
         loginButton.isEnabled = false
         
-        // PEGA O HWID REAL DO DISPOSITIVO
         let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "Desconhecido"
         let deviceModel = UIDevice.current.model
         let hwid = "\(deviceModel)-\(deviceId)"
         
-        // Valida na API
         validateKeyWithAPI(key: key, hwid: hwid)
     }
     
     func validateKeyWithAPI(key: String, hwid: String) {
-        // Você precisa configurar a API para receber a KEY e o HWID via GET ou POST.
-        // Aqui ele busca todas as keys e compara, mas o ideal seria um endpoint /validate
         guard let url = URL(string: apiUrl) else { return }
         
         URLSession.shared.dataTask(with: url) { data, _, error in
@@ -101,26 +93,23 @@ class LoginViewController: UIViewController {
                     do {
                         let json = try JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]]
                         
-                        // Procura a key no retorno da API
                         if let keyData = json?.first(where: { ($0["key"] as? String) == key }) {
-                            // Verifica se já está em uso
                             if let used = keyData["used"] as? Bool, used == true {
                                 self.showAlert(msg: "Esta key já foi utilizada.")
                                 return
                             }
                             
-                            // Calcula a expiração
                             if let days = keyData["expire"] as? Double {
                                 let expireDate = Date().addingTimeInterval(days * 24 * 60 * 60)
                                 UserDefaults.standard.set(key, forKey: "SavedKey")
                                 UserDefaults.standard.set(expireDate, forKey: "ExpireDate")
                                 
-                                // Opcional: Atualizar a API dizendo que a key foi usada
-                                self.updateKeyAsUsed(key: key, hwid: hwid)
+                                let keyId = keyData["id"] as? String ?? ""
+                                self.updateKeyAsUsed(key: key, hwid: hwid, id: keyId)
                                 
                                 self.onSuccess?()
                             } else {
-                                self.showAlert(msg: "Key sem validade definida.")
+                                self.showAlert(msg: "Key sem validade definida na API.")
                             }
                         } else {
                             self.showAlert(msg: "Key inválida ou não encontrada.")
@@ -135,10 +124,26 @@ class LoginViewController: UIViewController {
         }.resume()
     }
     
-    func updateKeyAsUsed(key: String, hwid: String) {
-        // Aqui você faz um PUT para a API informando que a key foi usada e salvando o HWID
-        // Exemplo: URL = apiUrl + "/" + idDaKey
-        // Body: { "used": true, "device": hwid }
+    func updateKeyAsUsed(key: String, hwid: String, id: String) {
+        guard let url = URL(string: "\(apiUrl)/\(id)") else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let now = Date().timeIntervalSince1970
+        
+        let body: [String: Any] = [
+            "used": true,
+            "device": hwid,
+            "activatedAt": now
+        ]
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        URLSession.shared.dataTask(with: request) { _, _, _ in
+            print("HWID e status salvos na API.")
+        }.resume()
     }
     
     func showAlert(msg: String) {
