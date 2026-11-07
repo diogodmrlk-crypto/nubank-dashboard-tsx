@@ -32,7 +32,7 @@ jobs:
           rm -f index.html
           cp dist/index.html .
           
-          # Info.plist com a barra de status ATIVADA e FACE ID
+          # Info.plist com FaceID e Barra de Status
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -54,7 +54,6 @@ jobs:
               <key>NSAppTransportSecurity</key>
               <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
               
-              <!-- CORREÇÃO DA BARRA DE STATUS AQUI -->
               <key>UIViewControllerBasedStatusBarAppearance</key><false/>
               <key>UIStatusBarHidden</key><false/>
               <key>UIStatusBarStyle</key><string>UIStatusBarStyleLightContent</string>
@@ -67,6 +66,7 @@ jobs:
           </plist>
           EOF
 
+          # project.yml incluindo os dois arquivos Swift
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
@@ -78,6 +78,7 @@ jobs:
               deploymentTarget: "15.0"
               sources:
                 - path: AppDelegate.swift
+                - path: LoginViewController.swift
                 - path: index.html
               settings:
                 base:
