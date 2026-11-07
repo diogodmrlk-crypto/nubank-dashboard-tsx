@@ -7,6 +7,11 @@ export default defineConfig({
   base: './',
   build: { 
     outDir: 'dist',
-    emptyOutDir: true 
+    emptyOutDir: true,
+    minify: 'terser',
+    terserOptions: {
+      compress: { drop_console: true },
+      mangle: true
+    }
   },
 })
