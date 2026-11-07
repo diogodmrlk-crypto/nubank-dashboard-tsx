@@ -1,7 +1,6 @@
 import UIKit
 import WebKit
 import LocalAuthentication
-import Foundation
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -21,12 +20,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         webView = WKWebView(frame: window!.bounds, configuration: config)
         webView?.isOpaque = false
         webView?.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1.0)
-        webView?.scrollView.contentInsetAdjustmentBehavior = .never
+        
+        webView?.scrollView.contentInsetAdjustmentBehavior = .never 
         webView?.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         
         window?.overrideUserInterfaceStyle = .dark
         
-        // 1. Inicia o fluxo de segurança
+        // 1. Inicia com Face ID
         authenticateWithFaceID()
         
         return true
@@ -46,17 +46,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 }
             }
         } else {
+            // Se não tiver Face ID (ex: iPhone antigo), segue direto
             self.checkKeyStatus()
         }
     }
     
-    // 2. Verifica se a Key está salva e válida
     func checkKeyStatus() {
-        if let savedKey = UserDefaults.standard.string(forKey: "SavedKey"),
+        if let _ = UserDefaults.standard.string(forKey: "SavedKey"),
            let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
             
             if Date() < expireDate {
-                // Key válida e não expirou. Abre o app.
                 self.loadReactApp()
             } else {
                 // Key expirou. Limpa e pede de novo.
@@ -65,7 +64,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 self.showLoginScreen()
             }
         } else {
-            // Sem key salva. Pede login.
             self.showLoginScreen()
         }
     }
@@ -81,7 +79,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
     
-    // 3. Mostra a tela de Login nativa em SwiftUI/UIKit
     func showLoginScreen() {
         let loginVC = LoginViewController()
         loginVC.apiUrl = apiUrl
