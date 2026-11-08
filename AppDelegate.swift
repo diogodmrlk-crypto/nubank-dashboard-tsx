@@ -7,13 +7,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     var webView: WKWebView?
     
+    // Referência para pegar o texto da Key
+    var keyTextField: UITextField?
+    
     let apiUrl = "https://69b9908ce69653ffe6a81689.mockapi.io/api/v1/bankkeys"
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Cria a janela na força bruta
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.overrideUserInterfaceStyle = .dark
+        window?.makeKeyAndVisible()
         
-        // Configura o WebView para quando precisar abrir o app
+        // Configuração do WebView para carregar o React depois
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
@@ -21,27 +26,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         webView?.isOpaque = false
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
         
-        // CHAMA A VERIFICAÇÃO AQUI EM VEZ DE ABRIR O LOGIN DIRETO
+        // Inicia o fluxo verificando a Key
         checkKeyStatus()
         
         return true
     }
     
-    // FUNÇÃO QUE VERIFICA SE JÁ TEM KEY SALVA
     func checkKeyStatus() {
-        // Pega a data de expiração salva no iPhone
         if let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
             if Date() < expireDate {
-                // Key ainda é válida, abre o app direto
                 loadReactApp()
             } else {
-                // Key expirou, apaga e pede de novo
                 UserDefaults.standard.removeObject(forKey: "SavedKey")
                 UserDefaults.standard.removeObject(forKey: "ExpireDate")
                 showLoginScreen()
             }
         } else {
-            // Nunca logou, pede a Key
             showLoginScreen()
         }
     }
@@ -59,7 +59,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func showLoginScreen() {
         let vc = UIViewController()
-        vc.view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0)
+        vc.view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0) // ROXO
         
         let titleLabel = UILabel()
         titleLabel.text = "ACESSO PRIVATE"
@@ -79,6 +79,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         keyTextField.leftView = paddingView
         keyTextField.leftViewMode = .always
         keyTextField.translatesAutoresizingMaskIntoConstraints = false
+        self.keyTextField = keyTextField
         
         let loginButton = UIButton(type: .system)
         loginButton.setTitle("Validar Key", for: .normal)
@@ -88,6 +89,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         loginButton.layer.cornerRadius = 10
         loginButton.translatesAutoresizingMaskIntoConstraints = false
         
+        let loginAction = UIAction { _ in
+            vc.view.endEditing(true)
+            guard let key = self.keyTextField?.text, !key.isEmpty else { return }
+            let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "Desconhecido"
+            let hwid = "\(UIDevice.current.model)-\(deviceId)"
+            
+            self.validateKeyWithAPI(key: key, hwid: hwid, onSuccess: {
+                self.loadReactApp()
+            }, onFailure: { msg in
+                let alert = UIAlertController(title: "Aviso", message: msg, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                vc.present(alert, animated: true)
+            })
+        }
+        loginButton.addAction(loginAction, for: .touchUpInside)
+        
         let discordButton = UIButton(type: .system)
         discordButton.setTitle("Discord", for: .normal)
         discordButton.backgroundColor = UIColor(red: 0.34, green: 0.39, blue: 0.85, alpha: 1.0)
@@ -96,30 +113,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         discordButton.layer.cornerRadius = 10
         discordButton.translatesAutoresizingMaskIntoConstraints = false
         
-        // Ação do Discord
         let discordAction = UIAction { _ in
             if let url = URL(string: "https://discord.gg/efyKdCXNXF") {
                 UIApplication.shared.open(url)
             }
         }
         discordButton.addAction(discordAction, for: .touchUpInside)
-        
-        // Ação de Login
-        let loginAction = UIAction { _ in
-            vc.view.endEditing(true)
-            guard let key = keyTextField.text, !key.isEmpty else { return }
-            let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "Desconhecido"
-            let hwid = "\(UIDevice.current.model)-\(deviceId)"
-            
-            self.validateKeyWithAPI(key: key, hwid: hwid, onSuccess: {
-                self.loadReactApp() // Se validar, vai pro app
-            }, onFailure: { msg in
-                let alert = UIAlertController(title: "Aviso", message: msg, preferredStyle: .alert)
-                alert.addAction(UIAlertAction(title: "OK", style: .default))
-                vc.present(alert, animated: true)
-            })
-        }
-        loginButton.addAction(loginAction, for: .touchUpInside)
         
         let containerView = UIView()
         containerView.translatesAutoresizingMaskIntoConstraints = false
@@ -170,7 +169,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         }
                         
                         if let days = keyData["expire"] as? Double {
-                            // SALVA A DATA DE EXPIRAÇÃO NO IPHONE
                             let expireDate = Date().addingTimeInterval(days * 24 * 60 * 60)
                             UserDefaults.standard.set(key, forKey: "SavedKey")
                             UserDefaults.standard.set(expireDate, forKey: "ExpireDate")
