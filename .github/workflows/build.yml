@@ -21,7 +21,6 @@ jobs:
       - name: Install Dependencies and Build Vite
         run: |
           npm install
-          npm install -D vite-plugin-singlefile terser
           npm run build
 
       - name: Install XcodeGen
@@ -29,9 +28,17 @@ jobs:
 
       - name: Prepare iOS Files
         run: |
+          # Limpa qualquer resquício de builds anteriores
           rm -f index.html
+          
+          # Copia o HTML gerado pelo Vite para a raiz
           cp dist/index.html .
           
+          # Mostra o tamanho do arquivo para confirmar que o React está dentro dele
+          echo "Tamanho do index.html:"
+          ls -lh index.html
+          
+          # Info.plist correto
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -52,11 +59,9 @@ jobs:
               <array><string>UIInterfaceOrientationPortrait</string></array>
               <key>NSAppTransportSecurity</key>
               <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
-              
               <key>UIViewControllerBasedStatusBarAppearance</key><false/>
               <key>UIStatusBarHidden</key><false/>
               <key>UIStatusBarStyle</key><string>UIStatusBarStyleLightContent</string>
-              
               <key>UILaunchScreen</key>
               <dict/>
               <key>NSFaceIDUsageDescription</key>
@@ -65,6 +70,7 @@ jobs:
           </plist>
           EOF
 
+          # Project.yml apontando para os arquivos na raiz
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
