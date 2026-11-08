@@ -7,13 +7,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     var webView: WKWebView?
     
-    // URL da sua API
     let apiUrl = "https://69b9908ce69653ffe6a81689.mockapi.io/api/v1/bankkeys"
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)
         
-        // Configuração do WebView
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
@@ -22,16 +20,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         webView?.isOpaque = false
         webView?.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1.0)
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
+        webView?.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         
         window?.overrideUserInterfaceStyle = .dark
         
-        // Inicia o fluxo
-        authenticateWithFaceID()
+        // ABRE DIRETO A TELA DE LOGIN
+        self.showLoginScreen()
         
         return true
     }
     
-    func authenticateWithFaceID() {
+    func checkKeyStatus() {
+        if let _ = UserDefaults.standard.string(forKey: "SavedKey"),
+           let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
+            if Date() < expireDate {
+                self.loadReactApp()
+            } else {
+                UserDefaults.standard.removeObject(forKey: "SavedKey")
+                UserDefaults.standard.removeObject(forKey: "ExpireDate")
+                self.showLoginScreen()
+            }
+        } else {
+            self.showLoginScreen()
+        }
+    }
+    
+    func loadReactApp() {
+        // Pede o Face ID AQUI, só depois da Key ser validada
         let context = LAContext()
         var error: NSError?
         
@@ -39,34 +54,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Acesse sua conta com segurança.") { success, _ in
                 DispatchQueue.main.async {
                     if success {
-                        self.checkKeyStatus()
+                        self.loadHTML()
                     }
                 }
             }
         } else {
-            self.checkKeyStatus()
+            self.loadHTML()
         }
     }
     
-    func checkKeyStatus() {
-        if let _ = UserDefaults.standard.string(forKey: "SavedKey"),
-           let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
-            
-            if Date() < expireDate {
-                self.loadReactApp()
-            } else {
-                // Key expirou
-                UserDefaults.standard.removeObject(forKey: "SavedKey")
-                UserDefaults.standard.removeObject(forKey: "ExpireDate")
-                self.showLoginScreen()
-            }
-        } else {
-            // Sem Key salva
-            self.showLoginScreen()
-        }
-    }
-    
-    func loadReactApp() {
+    func loadHTML() {
         if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html") {
             let url = URL(fileURLWithPath: htmlPath)
             webView?.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
