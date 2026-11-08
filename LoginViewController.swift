@@ -14,18 +14,8 @@ class LoginViewController: UIViewController {
     }
     
     func setupUI() {
-        view.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1.0) // Fundo escuro
-        
-        // Ícone "nu" fake
-        let logoLabel = UILabel()
-        logoLabel.text = "nu"
-        logoLabel.font = UIFont.boldSystemFont(ofSize: 32)
-        logoLabel.textColor = .white
-        logoLabel.backgroundColor = UIColor(red: 0.5, green: 0.1, blue: 0.8, alpha: 1.0)
-        logoLabel.textAlignment = .center
-        logoLabel.layer.cornerRadius = 10
-        logoLabel.layer.masksToBounds = true
-        logoLabel.translatesAutoresizingMaskIntoConstraints = false
+        // FUNDO ROXO ESCURO PARA VOCÊ VER QUE A TELA ABRIU
+        view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0)
         
         let titleLabel = UILabel()
         titleLabel.text = "Acesso Restrito"
@@ -35,7 +25,7 @@ class LoginViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
         keyTextField.placeholder = "Insira sua Key aqui"
-        keyTextField.backgroundColor = UIColor(white: 0.15, alpha: 1.0)
+        keyTextField.backgroundColor = UIColor(white: 0.2, alpha: 1.0)
         keyTextField.textColor = .white
         keyTextField.layer.cornerRadius = 8
         keyTextField.autocapitalizationType = .none
@@ -55,19 +45,13 @@ class LoginViewController: UIViewController {
         activityIndicator.color = .white
         activityIndicator.translatesAutoresizingMaskIntoConstraints = false
         
-        view.addSubview(logoLabel)
         view.addSubview(titleLabel)
         view.addSubview(keyTextField)
         view.addSubview(loginButton)
         view.addSubview(activityIndicator)
         
         NSLayoutConstraint.activate([
-            logoLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            logoLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 60),
-            logoLabel.widthAnchor.constraint(equalToConstant: 60),
-            logoLabel.heightAnchor.constraint(equalToConstant: 60),
-            
-            titleLabel.topAnchor.constraint(equalTo: logoLabel.bottomAnchor, constant: 20),
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 80),
             titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
             keyTextField.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 40),
