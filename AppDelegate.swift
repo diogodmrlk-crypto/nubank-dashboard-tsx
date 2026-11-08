@@ -6,7 +6,6 @@ import LocalAuthentication
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     var webView: WKWebView?
-    var keyTextField: UITextField! // Referência para fechar o teclado
     
     let apiUrl = "https://69b9908ce69653ffe6a81689.mockapi.io/api/v1/bankkeys"
     
@@ -14,26 +13,57 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.overrideUserInterfaceStyle = .dark
         
-        let config = WKWebViewConfiguration()
-        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
-        config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
-        webView = WKWebView(frame: window!.bounds, configuration: config)
-        webView?.isOpaque = false
-        webView?.scrollView.contentInsetAdjustmentBehavior = .never
+        // Força a janela a aparecer com a tela roxa
+        let loginVC = LoginViewController()
+        loginVC.apiUrl = apiUrl
+        loginVC.onSuccess = { [weak self] in
+            self?.loadReactApp()
+        }
         
-        showLoginScreen()
+        window?.rootViewController = loginVC
+        window?.makeKeyAndVisible()
         
         return true
     }
     
-    func showLoginScreen() {
-        let vc = UIViewController()
-        // Fundo roxo preenchendo TUDO
-        vc.view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0)
+    func loadReactApp() {
+        let config = WKWebViewConfiguration()
+        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+        config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
         
-        // Container para centralizar os elementos e não ficar espremido
-        let containerView = UIView()
-        containerView.translatesAutoresizingMaskIntoConstraints = false
+        webView = WKWebView(frame: window!.bounds, configuration: config)
+        webView?.isOpaque = false
+        webView?.scrollView.contentInsetAdjustmentBehavior = .never
+        
+        if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html") {
+            let url = URL(fileURLWithPath: htmlPath)
+            webView?.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            
+            let vc = UIViewController()
+            vc.view = webView
+            window?.rootViewController = vc
+        }
+    }
+}
+
+// ==========================================
+// TUDO AQUI DENTRO PARA NÃO DAR ERRO DE TELA PRETA
+// ==========================================
+class LoginViewController: UIViewController {
+    var apiUrl: String = ""
+    var onSuccess: (() -> Void)?
+    
+    let keyTextField = UITextField()
+    let loginButton = UIButton(type: .system)
+    let discordButton = UIButton(type: .system)
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupUI()
+    }
+    
+    func setupUI() {
+        view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0) // ROXO
         
         let titleLabel = UILabel()
         titleLabel.text = "ACESSO PRIVATE"
@@ -42,7 +72,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        keyTextField = UITextField()
         keyTextField.placeholder = "Insira sua Key aqui"
         keyTextField.backgroundColor = UIColor(white: 0.2, alpha: 1.0)
         keyTextField.textColor = .white
@@ -54,105 +83,65 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         keyTextField.leftViewMode = .always
         keyTextField.translatesAutoresizingMaskIntoConstraints = false
         
-        let loginButton = UIButton(type: .system)
         loginButton.setTitle("Validar Key", for: .normal)
         loginButton.backgroundColor = UIColor(red: 0.5, green: 0.1, blue: 0.8, alpha: 1.0)
         loginButton.setTitleColor(.white, for: .normal)
         loginButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
         loginButton.layer.cornerRadius = 10
+        loginButton.addTarget(self, action: #selector(handleLogin), for: .touchUpInside)
         loginButton.translatesAutoresizingMaskIntoConstraints = false
         
-        let discordButton = UIButton(type: .system)
         discordButton.setTitle("Discord", for: .normal)
-        discordButton.backgroundColor = UIColor(red: 0.34, green: 0.39, blue: 0.85, alpha: 1.0) // Cor do Discord
+        discordButton.backgroundColor = UIColor(red: 0.34, green: 0.39, blue: 0.85, alpha: 1.0)
         discordButton.setTitleColor(.white, for: .normal)
         discordButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
         discordButton.layer.cornerRadius = 10
+        discordButton.addTarget(self, action: #selector(openDiscord), for: .touchUpInside)
         discordButton.translatesAutoresizingMaskIntoConstraints = false
         
-        // Ação do Discord
-        let discordAction = UIAction { _ in
-            if let url = URL(string: "https://discord.gg/efyKdCXNXF") {
-                UIApplication.shared.open(url)
-            }
-        }
-        discordButton.addAction(discordAction, for: .touchUpInside)
-        
-        // Ação de Login
-        let loginAction = UIAction { _ in
-            // Esconde o teclado ao clicar
-            vc.view.endEditing(true)
-            
-            guard let key = self.keyTextField.text, !key.isEmpty else { return }
-            let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "Desconhecido"
-            let hwid = "\(UIDevice.current.model)-\(deviceId)"
-            
-            self.validateKeyWithAPI(key: key, hwid: hwid, onSuccess: {
-                self.loadReactApp()
-            }, onFailure: { msg in
-                let alert = UIAlertController(title: "Aviso", message: msg, preferredStyle: .alert)
-                alert.addAction(UIAlertAction(title: "OK", style: .default))
-                vc.present(alert, animated: true)
-            })
-        }
-        loginButton.addAction(loginAction, for: .touchUpInside)
-        
-        // Fechar teclado ao clicar no fundo
-        let tapGesture = UITapGestureRecognizer(target: vc.view, action: #selector(UIView.endEditing))
-        vc.view.addGestureRecognizer(tapGesture)
-        
-        containerView.addSubview(titleLabel)
-        containerView.addSubview(keyTextField)
-        containerView.addSubview(loginButton)
-        containerView.addSubview(discordButton)
-        
-        vc.view.addSubview(containerView)
+        view.addSubview(titleLabel)
+        view.addSubview(keyTextField)
+        view.addSubview(loginButton)
+        view.addSubview(discordButton)
         
         NSLayoutConstraint.activate([
-            // Container centralizado
-            containerView.centerYAnchor.constraint(equalTo: vc.view.centerYAnchor, constant: -50),
-            containerView.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 25),
-            containerView.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -25),
+            titleLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -120),
+            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             
-            // Título
-            titleLabel.topAnchor.constraint(equalTo: containerView.topAnchor),
-            titleLabel.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
-            
-            // Campo de Texto
             keyTextField.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 40),
-            keyTextField.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            keyTextField.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            keyTextField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 25),
+            keyTextField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -25),
             keyTextField.heightAnchor.constraint(equalToConstant: 55),
             
-            // Botão Validar Key
             loginButton.topAnchor.constraint(equalTo: keyTextField.bottomAnchor, constant: 20),
-            loginButton.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            loginButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            loginButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 25),
+            loginButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -25),
             loginButton.heightAnchor.constraint(equalToConstant: 55),
             
-            // Botão Discord (Abaixo do Validar Key)
             discordButton.topAnchor.constraint(equalTo: loginButton.bottomAnchor, constant: 15),
-            discordButton.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            discordButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            discordButton.heightAnchor.constraint(equalToConstant: 55),
-            discordButton.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+            discordButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 25),
+            discordButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -25),
+            discordButton.heightAnchor.constraint(equalToConstant: 55)
         ])
-        
-        window?.rootViewController = vc
     }
     
-    func loadReactApp() {
-        if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html") {
-            let url = URL(fileURLWithPath: htmlPath)
-            webView?.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
-            
-            let vc = UIViewController()
-            vc.view = webView
-            window?.rootViewController = vc
+    @objc func openDiscord() {
+        if let url = URL(string: "https://discord.gg/efyKdCXNXF") {
+            UIApplication.shared.open(url)
         }
     }
     
-    func validateKeyWithAPI(key: String, hwid: String, onSuccess: @escaping () -> Void, onFailure: @escaping (String) -> Void) {
+    @objc func handleLogin() {
+        view.endEditing(true)
+        guard let key = keyTextField.text, !key.isEmpty else { return }
+        
+        let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "Desconhecido"
+        let hwid = "\(UIDevice.current.model)-\(deviceId)"
+        
+        validateKeyWithAPI(key: key, hwid: hwid)
+    }
+    
+    func validateKeyWithAPI(key: String, hwid: String) {
         guard let url = URL(string: apiUrl) else { return }
         
         URLSession.shared.dataTask(with: url) { data, _, _ in
@@ -160,7 +149,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                     if let keyData = json.first(where: { ($0["key"] as? String) == key }) {
                         if let used = keyData["used"] as? Bool, used == true {
-                            onFailure("Esta key já foi utilizada.")
+                            self.showAlert(msg: "Esta key já foi utilizada.")
                             return
                         }
                         
@@ -172,15 +161,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                             if let keyId = keyData["id"] as? String {
                                 self.updateKeyAsUsed(id: keyId, hwid: hwid)
                             }
-                            onSuccess()
+                            self.onSuccess?()
                         } else {
-                            onFailure("Key sem validade definida.")
+                            self.showAlert(msg: "Key sem validade definida.")
                         }
                     } else {
-                        onFailure("Key inválida ou não encontrada.")
+                        self.showAlert(msg: "Key inválida ou não encontrada.")
                     }
                 } else {
-                    onFailure("Erro de conexão com a API.")
+                    self.showAlert(msg: "Erro de conexão com a API.")
                 }
             }
         }.resume()
@@ -194,5 +183,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let body: [String: Any] = ["used": true, "device": hwid, "activatedAt": Date().timeIntervalSince1970]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request).resume()
+    }
+    
+    func showAlert(msg: String) {
+        let alert = UIAlertController(title: "Aviso", message: msg, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }
