@@ -10,18 +10,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     let apiUrl = "https://69b9908ce69653ffe6a81689.mockapi.io/api/v1/bankkeys"
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Cria a janela na força bruta
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.overrideUserInterfaceStyle = .dark
         
+        // Força a janela a ser a principal (isso evita a tela preta)
+        window?.makeKeyAndVisible()
+        
+        // Cria o WebView (para depois)
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
-        
         webView = WKWebView(frame: window!.bounds, configuration: config)
         webView?.isOpaque = false
-        webView?.scrollView.contentInsetAdjustmentBehavior = .never
         
-        // Força a abertura da tela de Login logo de cara
+        // Abre a tela de login
         showLoginScreen()
         
         return true
@@ -29,7 +32,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func showLoginScreen() {
         let vc = UIViewController()
-        vc.view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0) // Cor Roxa
+        vc.view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0) // ROXO
         
         let titleLabel = UILabel()
         titleLabel.text = "Acesso Restrito"
@@ -44,7 +47,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         keyTextField.textColor = .white
         keyTextField.layer.cornerRadius = 8
         keyTextField.autocapitalizationType = .none
-        keyTextField.autocorrectionType = .no
         let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 40))
         keyTextField.leftView = paddingView
         keyTextField.leftViewMode = .always
@@ -59,7 +61,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         let action = UIAction { _ in
             guard let key = keyTextField.text, !key.isEmpty else { return }
-            
             let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "Desconhecido"
             let hwid = "\(UIDevice.current.model)-\(deviceId)"
             
@@ -113,7 +114,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             DispatchQueue.main.async {
                 if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                     if let keyData = json.first(where: { ($0["key"] as? String) == key }) {
-                        
                         if let used = keyData["used"] as? Bool, used == true {
                             onFailure("Esta key já foi utilizada.")
                             return
@@ -129,7 +129,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                             }
                             onSuccess()
                         } else {
-                            onFailure("Key sem validade definida na API.")
+                            onFailure("Key sem validade definida.")
                         }
                     } else {
                         onFailure("Key inválida ou não encontrada.")
