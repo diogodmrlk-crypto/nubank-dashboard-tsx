@@ -28,10 +28,11 @@ jobs:
 
       - name: Prepare iOS Files
         run: |
+          # Limpa o index.html antigo e copia o novo gerado pelo Vite
           rm -f index.html
           cp dist/index.html .
           
-          # Info.plist SEM Storyboard (Força o AppDelegate a rodar)
+          # Cria o Info.plist CORRETO para evitar a tela preta
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -42,27 +43,35 @@ jobs:
               <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
               <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
               <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
-              <key>CFBundleDisplayName</key><string>Nubank V4</string>
+              <key>CFBundleDisplayName</key><string>Nubank V5</string>
               <key>CFBundlePackageType</key><string>APPL</string>
-              <key>CFBundleShortVersionString</key><string>4.0</string>
-              <key>CFBundleVersion</key><string>4</string>
+              <key>CFBundleShortVersionString</key><string>5.0</string>
+              <key>CFBundleVersion</key><string>5</string>
               <key>LSRequiresIPhoneOS</key><true/>
               <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
               <key>UISupportedInterfaceOrientations</key>
               <array><string>UIInterfaceOrientationPortrait</string></array>
               <key>NSAppTransportSecurity</key>
               <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
+              
+              <!-- CONFIGURAÇÕES DA BARRA DE STATUS -->
               <key>UIViewControllerBasedStatusBarAppearance</key><false/>
               <key>UIStatusBarHidden</key><false/>
               <key>UIStatusBarStyle</key><string>UIStatusBarStyleLightContent</string>
+              
+              <!-- CONFIGURAÇÕES QUE EVITAM A TELA PRETA -->
+              <key>UILaunchScreen</key>
+              <dict/>
+              <key>UIMainStoryboardFile</key>
+              <string></string>
+              
               <key>NSFaceIDUsageDescription</key>
               <string>Use o Face ID para acessar sua conta com segurança.</string>
-              <key>UIMainStoryboardFile</key><string></string>
           </dict>
           </plist>
           EOF
 
-          # Project.yml incluindo apenas o AppDelegate e o HTML
+          # Cria o project.yml apontando para o arquivo único
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
@@ -77,7 +86,7 @@ jobs:
                 - path: index.html
               settings:
                 base:
-                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp.v4
+                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp.v5
                   INFOPLIST_FILE: Info.plist
                   CODE_SIGN_IDENTITY: ""
                   CODE_SIGNING_REQUIRED: "NO"
@@ -87,6 +96,7 @@ jobs:
                   INFOPLIST_KEY_UILaunchStoryboardName: ""
           EOF
 
+          # Gera o projeto Xcode
           xcodegen generate
 
       - name: Build Archive (No Signing)
@@ -109,10 +119,10 @@ jobs:
           mkdir -p $RUNNER_TEMP/Payload
           cp -R $RUNNER_TEMP/App.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
           cd $RUNNER_TEMP
-          zip -r NubankApp_v4.ipa Payload
+          zip -r NubankApp_v5.ipa Payload
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Nubank-Native-IPA-v4
-          path: ${{ runner.temp }}/NubankApp_v4.ipa
+          name: Nubank-Native-IPA-v5
+          path: ${{ runner.temp }}/NubankApp_v5.ipa
