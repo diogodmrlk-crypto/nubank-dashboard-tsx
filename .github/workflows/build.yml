@@ -28,17 +28,10 @@ jobs:
 
       - name: Prepare iOS Files
         run: |
-          # Limpa qualquer resquício de builds anteriores
+          # Limpa qualquer resquício
           rm -f index.html
-          
-          # Copia o HTML gerado pelo Vite para a raiz
           cp dist/index.html .
           
-          # Mostra o tamanho do arquivo para confirmar que o React está dentro dele
-          echo "Tamanho do index.html:"
-          ls -lh index.html
-          
-          # Info.plist correto
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -49,10 +42,10 @@ jobs:
               <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
               <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
               <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
-              <key>CFBundleDisplayName</key><string>Nubank</string>
+              <key>CFBundleDisplayName</key><string>Nubank V2</string>
               <key>CFBundlePackageType</key><string>APPL</string>
-              <key>CFBundleShortVersionString</key><string>1.0</string>
-              <key>CFBundleVersion</key><string>1</string>
+              <key>CFBundleShortVersionString</key><string>2.0</string>
+              <key>CFBundleVersion</key><string>2</string>
               <key>LSRequiresIPhoneOS</key><true/>
               <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
               <key>UISupportedInterfaceOrientations</key>
@@ -70,7 +63,7 @@ jobs:
           </plist>
           EOF
 
-          # Project.yml apontando para os arquivos na raiz
+          # ATENÇÃO: Criei o V2 no ID para não usar cache
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
@@ -82,11 +75,10 @@ jobs:
               deploymentTarget: "15.0"
               sources:
                 - path: AppDelegate.swift
-                - path: LoginViewController.swift
                 - path: index.html
               settings:
                 base:
-                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp
+                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp.v2
                   INFOPLIST_FILE: Info.plist
                   CODE_SIGN_IDENTITY: ""
                   CODE_SIGNING_REQUIRED: "NO"
@@ -116,10 +108,11 @@ jobs:
           mkdir -p $RUNNER_TEMP/Payload
           cp -R $RUNNER_TEMP/App.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
           cd $RUNNER_TEMP
-          zip -r NubankNative.ipa Payload
+          # NOME NOVO DO ARQUIVO
+          zip -r NubankApp_v2.ipa Payload
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Nubank-Native-IPA
-          path: ${{ runner.temp }}/NubankNative.ipa
+          name: Nubank-Native-IPA-v2
+          path: ${{ runner.temp }}/NubankApp_v2.ipa
