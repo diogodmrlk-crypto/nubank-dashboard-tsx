@@ -11,6 +11,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)
+        window?.overrideUserInterfaceStyle = .dark
         
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
@@ -18,14 +19,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         webView = WKWebView(frame: window!.bounds, configuration: config)
         webView?.isOpaque = false
-        webView?.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1.0)
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
-        webView?.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         
-        window?.overrideUserInterfaceStyle = .dark
-        
-        // ABRE DIRETO A TELA DE LOGIN
-        self.showLoginScreen()
+        // Verifica se já tem key salva
+        checkKeyStatus()
         
         return true
     }
@@ -33,6 +30,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func checkKeyStatus() {
         if let _ = UserDefaults.standard.string(forKey: "SavedKey"),
            let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
+            
             if Date() < expireDate {
                 self.loadReactApp()
             } else {
@@ -46,7 +44,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func loadReactApp() {
-        // Pede o Face ID AQUI, só depois da Key ser validada
         let context = LAContext()
         var error: NSError?
         
@@ -80,6 +77,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         loginVC.onSuccess = { [weak self] in
             self?.loadReactApp()
         }
-        window?.rootViewController = loginVC
+        
+        // O SEGREDO ESTÁ AQUI: Usar um NavigationController força a tela a aparecer
+        let navController = UINavigationController(rootViewController: loginVC)
+        navController.setNavigationBarHidden(true, animated: false)
+        window?.rootViewController = navController
     }
 }
