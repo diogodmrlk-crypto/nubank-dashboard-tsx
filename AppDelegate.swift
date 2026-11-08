@@ -13,6 +13,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)
         
+        // Configuração do WebView
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
@@ -20,13 +21,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         webView = WKWebView(frame: window!.bounds, configuration: config)
         webView?.isOpaque = false
         webView?.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1.0)
-        
-        webView?.scrollView.contentInsetAdjustmentBehavior = .never 
-        webView?.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        webView?.scrollView.contentInsetAdjustmentBehavior = .never
         
         window?.overrideUserInterfaceStyle = .dark
         
-        // 1. Inicia com Face ID
+        // Inicia o fluxo
         authenticateWithFaceID()
         
         return true
@@ -37,8 +36,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         var error: NSError?
         
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-            let reason = "Acesse sua conta Nubank com segurança."
-            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, _ in
+            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Acesse sua conta com segurança.") { success, _ in
                 DispatchQueue.main.async {
                     if success {
                         self.checkKeyStatus()
@@ -46,7 +44,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 }
             }
         } else {
-            // Se não tiver Face ID (ex: iPhone antigo), segue direto
             self.checkKeyStatus()
         }
     }
@@ -58,12 +55,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             if Date() < expireDate {
                 self.loadReactApp()
             } else {
-                // Key expirou. Limpa e pede de novo.
+                // Key expirou
                 UserDefaults.standard.removeObject(forKey: "SavedKey")
                 UserDefaults.standard.removeObject(forKey: "ExpireDate")
                 self.showLoginScreen()
             }
         } else {
+            // Sem Key salva
             self.showLoginScreen()
         }
     }
@@ -73,9 +71,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let url = URL(fileURLWithPath: htmlPath)
             webView?.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
             
-            let viewController = UIViewController()
-            viewController.view = webView
-            window?.rootViewController = viewController
+            let vc = UIViewController()
+            vc.view = webView
+            window?.rootViewController = vc
         }
     }
     
