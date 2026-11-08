@@ -21,46 +21,81 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         webView?.isOpaque = false
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
         
-        // Verifica se já tem key salva
-        checkKeyStatus()
+        // Força a abertura da tela de Login logo de cara
+        showLoginScreen()
         
         return true
     }
     
-    func checkKeyStatus() {
-        if let _ = UserDefaults.standard.string(forKey: "SavedKey"),
-           let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
+    func showLoginScreen() {
+        let vc = UIViewController()
+        vc.view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0) // Cor Roxa
+        
+        let titleLabel = UILabel()
+        titleLabel.text = "Acesso Restrito"
+        titleLabel.font = UIFont.boldSystemFont(ofSize: 26)
+        titleLabel.textColor = .white
+        titleLabel.textAlignment = .center
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        let keyTextField = UITextField()
+        keyTextField.placeholder = "Insira sua Key aqui"
+        keyTextField.backgroundColor = UIColor(white: 0.2, alpha: 1.0)
+        keyTextField.textColor = .white
+        keyTextField.layer.cornerRadius = 8
+        keyTextField.autocapitalizationType = .none
+        keyTextField.autocorrectionType = .no
+        let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 40))
+        keyTextField.leftView = paddingView
+        keyTextField.leftViewMode = .always
+        keyTextField.translatesAutoresizingMaskIntoConstraints = false
+        
+        let loginButton = UIButton(type: .system)
+        loginButton.setTitle("Validar Key", for: .normal)
+        loginButton.backgroundColor = UIColor(red: 0.5, green: 0.1, blue: 0.8, alpha: 1.0)
+        loginButton.setTitleColor(.white, for: .normal)
+        loginButton.layer.cornerRadius = 8
+        loginButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        let action = UIAction { _ in
+            guard let key = keyTextField.text, !key.isEmpty else { return }
             
-            if Date() < expireDate {
+            let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "Desconhecido"
+            let hwid = "\(UIDevice.current.model)-\(deviceId)"
+            
+            self.validateKeyWithAPI(key: key, hwid: hwid, onSuccess: {
                 self.loadReactApp()
-            } else {
-                UserDefaults.standard.removeObject(forKey: "SavedKey")
-                UserDefaults.standard.removeObject(forKey: "ExpireDate")
-                self.showLoginScreen()
-            }
-        } else {
-            self.showLoginScreen()
+            }, onFailure: { msg in
+                let alert = UIAlertController(title: "Aviso", message: msg, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                vc.present(alert, animated: true)
+            })
         }
+        loginButton.addAction(action, for: .touchUpInside)
+        
+        vc.view.addSubview(titleLabel)
+        vc.view.addSubview(keyTextField)
+        vc.view.addSubview(loginButton)
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.topAnchor, constant: 80),
+            titleLabel.centerXAnchor.constraint(equalTo: vc.view.centerXAnchor),
+            
+            keyTextField.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 40),
+            keyTextField.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 20),
+            keyTextField.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -20),
+            keyTextField.heightAnchor.constraint(equalToConstant: 50),
+            
+            loginButton.topAnchor.constraint(equalTo: keyTextField.bottomAnchor, constant: 20),
+            loginButton.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 20),
+            loginButton.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -20),
+            loginButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+        
+        window?.rootViewController = vc
     }
     
     func loadReactApp() {
-        let context = LAContext()
-        var error: NSError?
-        
-        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Acesse sua conta com segurança.") { success, _ in
-                DispatchQueue.main.async {
-                    if success {
-                        self.loadHTML()
-                    }
-                }
-            }
-        } else {
-            self.loadHTML()
-        }
-    }
-    
-    func loadHTML() {
         if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html") {
             let url = URL(fileURLWithPath: htmlPath)
             webView?.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
@@ -71,16 +106,48 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
     
-    func showLoginScreen() {
-        let loginVC = LoginViewController()
-        loginVC.apiUrl = apiUrl
-        loginVC.onSuccess = { [weak self] in
-            self?.loadReactApp()
-        }
+    func validateKeyWithAPI(key: String, hwid: String, onSuccess: @escaping () -> Void, onFailure: @escaping (String) -> Void) {
+        guard let url = URL(string: apiUrl) else { return }
         
-        // O SEGREDO ESTÁ AQUI: Usar um NavigationController força a tela a aparecer
-        let navController = UINavigationController(rootViewController: loginVC)
-        navController.setNavigationBarHidden(true, animated: false)
-        window?.rootViewController = navController
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            DispatchQueue.main.async {
+                if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                    if let keyData = json.first(where: { ($0["key"] as? String) == key }) {
+                        
+                        if let used = keyData["used"] as? Bool, used == true {
+                            onFailure("Esta key já foi utilizada.")
+                            return
+                        }
+                        
+                        if let days = keyData["expire"] as? Double {
+                            let expireDate = Date().addingTimeInterval(days * 24 * 60 * 60)
+                            UserDefaults.standard.set(key, forKey: "SavedKey")
+                            UserDefaults.standard.set(expireDate, forKey: "ExpireDate")
+                            
+                            if let keyId = keyData["id"] as? String {
+                                self.updateKeyAsUsed(id: keyId, hwid: hwid)
+                            }
+                            onSuccess()
+                        } else {
+                            onFailure("Key sem validade definida na API.")
+                        }
+                    } else {
+                        onFailure("Key inválida ou não encontrada.")
+                    }
+                } else {
+                    onFailure("Erro de conexão com a API.")
+                }
+            }
+        }.resume()
+    }
+    
+    func updateKeyAsUsed(id: String, hwid: String) {
+        guard let url = URL(string: "\(apiUrl)/\(id)") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = ["used": true, "device": hwid, "activatedAt": Date().timeIntervalSince1970]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request).resume()
     }
 }
