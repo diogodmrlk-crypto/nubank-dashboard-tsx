@@ -6,25 +6,21 @@ import LocalAuthentication
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     var webView: WKWebView?
+    var keyTextField: UITextField! // Referência para fechar o teclado
     
     let apiUrl = "https://69b9908ce69653ffe6a81689.mockapi.io/api/v1/bankkeys"
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Cria a janela na força bruta
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.overrideUserInterfaceStyle = .dark
         
-        // Força a janela a ser a principal (isso evita a tela preta)
-        window?.makeKeyAndVisible()
-        
-        // Cria o WebView (para depois)
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
         webView = WKWebView(frame: window!.bounds, configuration: config)
         webView?.isOpaque = false
+        webView?.scrollView.contentInsetAdjustmentBehavior = .never
         
-        // Abre a tela de login
         showLoginScreen()
         
         return true
@@ -32,22 +28,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func showLoginScreen() {
         let vc = UIViewController()
-        vc.view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0) // ROXO
+        // Fundo roxo preenchendo TUDO
+        vc.view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0)
+        
+        // Container para centralizar os elementos e não ficar espremido
+        let containerView = UIView()
+        containerView.translatesAutoresizingMaskIntoConstraints = false
         
         let titleLabel = UILabel()
-        titleLabel.text = "Acesso Restrito"
-        titleLabel.font = UIFont.boldSystemFont(ofSize: 26)
+        titleLabel.text = "ACESSO PRIVATE"
+        titleLabel.font = UIFont.boldSystemFont(ofSize: 28)
         titleLabel.textColor = .white
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         
-        let keyTextField = UITextField()
+        keyTextField = UITextField()
         keyTextField.placeholder = "Insira sua Key aqui"
         keyTextField.backgroundColor = UIColor(white: 0.2, alpha: 1.0)
         keyTextField.textColor = .white
-        keyTextField.layer.cornerRadius = 8
+        keyTextField.layer.cornerRadius = 10
         keyTextField.autocapitalizationType = .none
-        let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 40))
+        keyTextField.autocorrectionType = .no
+        let paddingView = UIView(frame: CGRect(x: 0, y: 0, width: 15, height: 50))
         keyTextField.leftView = paddingView
         keyTextField.leftViewMode = .always
         keyTextField.translatesAutoresizingMaskIntoConstraints = false
@@ -56,11 +58,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         loginButton.setTitle("Validar Key", for: .normal)
         loginButton.backgroundColor = UIColor(red: 0.5, green: 0.1, blue: 0.8, alpha: 1.0)
         loginButton.setTitleColor(.white, for: .normal)
-        loginButton.layer.cornerRadius = 8
+        loginButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
+        loginButton.layer.cornerRadius = 10
         loginButton.translatesAutoresizingMaskIntoConstraints = false
         
-        let action = UIAction { _ in
-            guard let key = keyTextField.text, !key.isEmpty else { return }
+        let discordButton = UIButton(type: .system)
+        discordButton.setTitle("Discord", for: .normal)
+        discordButton.backgroundColor = UIColor(red: 0.34, green: 0.39, blue: 0.85, alpha: 1.0) // Cor do Discord
+        discordButton.setTitleColor(.white, for: .normal)
+        discordButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
+        discordButton.layer.cornerRadius = 10
+        discordButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Ação do Discord
+        let discordAction = UIAction { _ in
+            if let url = URL(string: "https://discord.gg/efyKdCXNXF") {
+                UIApplication.shared.open(url)
+            }
+        }
+        discordButton.addAction(discordAction, for: .touchUpInside)
+        
+        // Ação de Login
+        let loginAction = UIAction { _ in
+            // Esconde o teclado ao clicar
+            vc.view.endEditing(true)
+            
+            guard let key = self.keyTextField.text, !key.isEmpty else { return }
             let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "Desconhecido"
             let hwid = "\(UIDevice.current.model)-\(deviceId)"
             
@@ -72,25 +95,47 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 vc.present(alert, animated: true)
             })
         }
-        loginButton.addAction(action, for: .touchUpInside)
+        loginButton.addAction(loginAction, for: .touchUpInside)
         
-        vc.view.addSubview(titleLabel)
-        vc.view.addSubview(keyTextField)
-        vc.view.addSubview(loginButton)
+        // Fechar teclado ao clicar no fundo
+        let tapGesture = UITapGestureRecognizer(target: vc.view, action: #selector(UIView.endEditing))
+        vc.view.addGestureRecognizer(tapGesture)
+        
+        containerView.addSubview(titleLabel)
+        containerView.addSubview(keyTextField)
+        containerView.addSubview(loginButton)
+        containerView.addSubview(discordButton)
+        
+        vc.view.addSubview(containerView)
         
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.topAnchor, constant: 80),
-            titleLabel.centerXAnchor.constraint(equalTo: vc.view.centerXAnchor),
+            // Container centralizado
+            containerView.centerYAnchor.constraint(equalTo: vc.view.centerYAnchor, constant: -50),
+            containerView.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 25),
+            containerView.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -25),
             
+            // Título
+            titleLabel.topAnchor.constraint(equalTo: containerView.topAnchor),
+            titleLabel.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            
+            // Campo de Texto
             keyTextField.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 40),
-            keyTextField.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 20),
-            keyTextField.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -20),
-            keyTextField.heightAnchor.constraint(equalToConstant: 50),
+            keyTextField.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            keyTextField.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            keyTextField.heightAnchor.constraint(equalToConstant: 55),
             
+            // Botão Validar Key
             loginButton.topAnchor.constraint(equalTo: keyTextField.bottomAnchor, constant: 20),
-            loginButton.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 20),
-            loginButton.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -20),
-            loginButton.heightAnchor.constraint(equalToConstant: 50)
+            loginButton.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            loginButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            loginButton.heightAnchor.constraint(equalToConstant: 55),
+            
+            // Botão Discord (Abaixo do Validar Key)
+            discordButton.topAnchor.constraint(equalTo: loginButton.bottomAnchor, constant: 15),
+            discordButton.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            discordButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            discordButton.heightAnchor.constraint(equalToConstant: 55),
+            discordButton.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
         ])
         
         window?.rootViewController = vc
