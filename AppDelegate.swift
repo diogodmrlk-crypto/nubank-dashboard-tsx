@@ -17,18 +17,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.overrideUserInterfaceStyle = .dark
         window?.makeKeyAndVisible()
         
+        // Configuração do WebView (SEM INJEÇÃO DE CSS)
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
-        
-        // CSS para arrumar os ícones brancos do Lucide
-        let cssInjection = """
-        var style = document.createElement('style');
-        style.innerHTML = 'svg { stroke: white !important; color: white !important; fill: none !important; }';
-        document.head.appendChild(style);
-        """
-        let script = WKUserScript(source: cssInjection, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
-        config.userContentController.addUserScript(script)
         
         webView = WKWebView(frame: window!.bounds, configuration: config)
         webView?.isOpaque = false
@@ -90,7 +82,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func checkKeyStatus() {
         if let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
             if Date() < expireDate {
-                loadReactApp() // Entra direto, sem Face ID
+                loadReactApp() // Entra direto
             } else {
                 logout()
             }
