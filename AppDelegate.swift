@@ -1,6 +1,5 @@
 import UIKit
 import WebKit
-import LocalAuthentication
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -22,7 +21,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
         
-        // CSS para arrumar os ícones brancos
+        // CSS para arrumar os ícones brancos do Lucide
         let cssInjection = """
         var style = document.createElement('style');
         style.innerHTML = 'svg { stroke: white !important; color: white !important; fill: none !important; }';
@@ -40,7 +39,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
     
-    // FUNÇÃO CHAMADA QUANDO O APP VOLTA DO BACKGROUND OU ABRE
+    // CHAMADO QUANDO O APP VOLTA DO BACKGROUND
     func applicationDidBecomeActive(_ application: UIApplication) {
         if !isShowingLogin {
             checkKeyOnServer()
@@ -64,7 +63,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         URLSession.shared.dataTask(with: url) { data, _, _ in
             DispatchQueue.main.async {
                 if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                    // Procura a key salva no painel da API
                     if let keyData = json.first(where: { ($0["key"] as? String) == savedKey }) {
                         let used = keyData["used"] as? Bool ?? false
                         let status = keyData["status"] as? String ?? "active"
@@ -92,31 +90,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func checkKeyStatus() {
         if let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
             if Date() < expireDate {
-                requestFaceID()
+                loadReactApp() // Entra direto, sem Face ID
             } else {
                 logout()
             }
         } else {
             showLoginScreen()
-        }
-    }
-    
-    func requestFaceID() {
-        let context = LAContext()
-        var error: NSError?
-        
-        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Desbloqueie o Nubank para acessar.") { success, _ in
-                DispatchQueue.main.async {
-                    if success {
-                        self.loadReactApp()
-                    } else {
-                        self.showLoginScreen()
-                    }
-                }
-            }
-        } else {
-            self.loadReactApp()
         }
     }
     
@@ -131,36 +110,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let vc = UIViewController()
             vc.view = webView
             window?.rootViewController = vc
-            
-            setupFaceIDButton(on: vc)
         }
-    }
-    
-    func setupFaceIDButton(on vc: UIViewController) {
-        let faceIdButton = UIButton(type: .system)
-        faceIdButton.setImage(UIImage(systemName: "faceid"), for: .normal)
-        faceIdButton.tintColor = .white
-        faceIdButton.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        faceIdButton.layer.cornerRadius = 25
-        faceIdButton.translatesAutoresizingMaskIntoConstraints = false
-        
-        let action = UIAction { _ in
-            self.requestFaceID()
-        }
-        faceIdButton.addAction(action, for: .touchUpInside)
-        
-        vc.view.addSubview(faceIdButton)
-        
-        NSLayoutConstraint.activate([
-            faceIdButton.topAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            faceIdButton.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -20),
-            faceIdButton.widthAnchor.constraint(equalToConstant: 50),
-            faceIdButton.heightAnchor.constraint(equalToConstant: 50)
-        ])
     }
     
     func showLoginScreen() {
-        if isShowingLogin { return } // Evita recriar a tela sem necessidade
+        if isShowingLogin { return }
         
         isShowingLogin = true
         isWebViewLoaded = false
@@ -203,7 +157,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let hwid = "\(UIDevice.current.model)-\(deviceId)"
             
             self.validateKeyWithAPI(key: key, hwid: hwid, onSuccess: {
-                self.requestFaceID()
+                self.loadReactApp() // Entra direto após validar a key
             }, onFailure: { msg in
                 let alert = UIAlertController(title: "Aviso", message: msg, preferredStyle: .alert)
                 alert.addAction(UIAlertAction(title: "OK", style: .default))
