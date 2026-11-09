@@ -8,7 +8,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var webView: WKWebView?
     var keyTextField: UITextField?
     
-    // Variáveis de controle
     var isShowingLogin = false
     var isWebViewLoaded = false
     
@@ -22,6 +21,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
+        
+        // CSS para arrumar os ícones brancos
+        let cssInjection = """
+        var style = document.createElement('style');
+        style.innerHTML = 'svg { stroke: white !important; color: white !important; fill: none !important; }';
+        document.head.appendChild(style);
+        """
+        let script = WKUserScript(source: cssInjection, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        config.userContentController.addUserScript(script)
+        
         webView = WKWebView(frame: window!.bounds, configuration: config)
         webView?.isOpaque = false
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
@@ -31,31 +40,83 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
     
-    // ESSA FUNÇÃO É CHAMADA TODA VEZ QUE O APP VOLTA DO BACKGROUND
+    // FUNÇÃO CHAMADA QUANDO O APP VOLTA DO BACKGROUND OU ABRE
     func applicationDidBecomeActive(_ application: UIApplication) {
-        checkKeyStatus()
+        if !isShowingLogin {
+            checkKeyOnServer()
+        }
+    }
+    
+    // CHECA NA API SE A KEY FOI DELETADA, DESVINCULADA OU BLOQUEADA
+    func checkKeyOnServer() {
+        guard let savedKey = UserDefaults.standard.string(forKey: "SavedKey"),
+              let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date else {
+            return
+        }
+        
+        if Date() >= expireDate {
+            logout()
+            return
+        }
+        
+        guard let url = URL(string: apiUrl) else { return }
+        
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            DispatchQueue.main.async {
+                if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                    // Procura a key salva no painel da API
+                    if let keyData = json.first(where: { ($0["key"] as? String) == savedKey }) {
+                        let used = keyData["used"] as? Bool ?? false
+                        let status = keyData["status"] as? String ?? "active"
+                        
+                        // Se desvinculou, bloqueou ou revogou, desloga
+                        if !used || status == "blocked" || status == "revoked" {
+                            self.logout()
+                        }
+                    } else {
+                        // Se a key foi deletada da API, desloga
+                        self.logout()
+                    }
+                }
+            }
+        }.resume()
+    }
+    
+    // LIMPA A MEMÓRIA E VOLTA PRO LOGIN
+    func logout() {
+        UserDefaults.standard.removeObject(forKey: "SavedKey")
+        UserDefaults.standard.removeObject(forKey: "ExpireDate")
+        showLoginScreen()
     }
     
     func checkKeyStatus() {
         if let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
             if Date() < expireDate {
-                // Key válida
-                if !isWebViewLoaded {
-                    loadReactApp()
-                }
+                requestFaceID()
             } else {
-                // Key expirou
-                UserDefaults.standard.removeObject(forKey: "SavedKey")
-                UserDefaults.standard.removeObject(forKey: "ExpireDate")
-                if !isShowingLogin {
-                    showLoginScreen()
+                logout()
+            }
+        } else {
+            showLoginScreen()
+        }
+    }
+    
+    func requestFaceID() {
+        let context = LAContext()
+        var error: NSError?
+        
+        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
+            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Desbloqueie o Nubank para acessar.") { success, _ in
+                DispatchQueue.main.async {
+                    if success {
+                        self.loadReactApp()
+                    } else {
+                        self.showLoginScreen()
+                    }
                 }
             }
         } else {
-            // Sem key salva
-            if !isShowingLogin {
-                showLoginScreen()
-            }
+            self.loadReactApp()
         }
     }
     
@@ -70,10 +131,37 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let vc = UIViewController()
             vc.view = webView
             window?.rootViewController = vc
+            
+            setupFaceIDButton(on: vc)
         }
     }
     
+    func setupFaceIDButton(on vc: UIViewController) {
+        let faceIdButton = UIButton(type: .system)
+        faceIdButton.setImage(UIImage(systemName: "faceid"), for: .normal)
+        faceIdButton.tintColor = .white
+        faceIdButton.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        faceIdButton.layer.cornerRadius = 25
+        faceIdButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        let action = UIAction { _ in
+            self.requestFaceID()
+        }
+        faceIdButton.addAction(action, for: .touchUpInside)
+        
+        vc.view.addSubview(faceIdButton)
+        
+        NSLayoutConstraint.activate([
+            faceIdButton.topAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            faceIdButton.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -20),
+            faceIdButton.widthAnchor.constraint(equalToConstant: 50),
+            faceIdButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+    }
+    
     func showLoginScreen() {
+        if isShowingLogin { return } // Evita recriar a tela sem necessidade
+        
         isShowingLogin = true
         isWebViewLoaded = false
         
@@ -115,7 +203,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let hwid = "\(UIDevice.current.model)-\(deviceId)"
             
             self.validateKeyWithAPI(key: key, hwid: hwid, onSuccess: {
-                self.loadReactApp()
+                self.requestFaceID()
             }, onFailure: { msg in
                 let alert = UIAlertController(title: "Aviso", message: msg, preferredStyle: .alert)
                 alert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -187,22 +275,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                             return
                         }
                         
-                        // CORREÇÃO DA MATEMÁTICA DE TEMPO AQUI
                         if let expireAmount = keyData["expire"] as? Double, let type = keyData["type"] as? String {
                             var timeInterval: TimeInterval = 0
                             
                             if type == "hourly" {
-                                timeInterval = expireAmount * 60 * 60 // Horas
+                                timeInterval = expireAmount * 60 * 60
                             } else if type == "daily" {
-                                timeInterval = expireAmount * 24 * 60 * 60 // Dias
+                                timeInterval = expireAmount * 24 * 60 * 60
                             } else if type == "weekly" {
-                                timeInterval = expireAmount * 7 * 24 * 60 * 60 // Semanas
+                                timeInterval = expireAmount * 7 * 24 * 60 * 60
                             } else if type == "monthly" {
-                                timeInterval = 30 * 24 * 60 * 60 // Mês
+                                timeInterval = 30 * 24 * 60 * 60
                             } else if type == "perm" {
-                                timeInterval = 36500 * 24 * 60 * 60 // Permanente (100 anos)
+                                timeInterval = 36500 * 24 * 60 * 60
                             } else {
-                                timeInterval = expireAmount * 24 * 60 * 60 // Fallback
+                                timeInterval = expireAmount * 24 * 60 * 60
                             }
                             
                             let expireDate = Date().addingTimeInterval(timeInterval)
