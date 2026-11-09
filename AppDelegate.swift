@@ -6,19 +6,19 @@ import LocalAuthentication
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     var webView: WKWebView?
-    
-    // Referência para pegar o texto da Key
     var keyTextField: UITextField?
+    
+    // Variáveis de controle
+    var isShowingLogin = false
+    var isWebViewLoaded = false
     
     let apiUrl = "https://69b9908ce69653ffe6a81689.mockapi.io/api/v1/bankkeys"
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Cria a janela na força bruta
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.overrideUserInterfaceStyle = .dark
         window?.makeKeyAndVisible()
         
-        // Configuração do WebView para carregar o React depois
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
@@ -26,27 +26,43 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         webView?.isOpaque = false
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
         
-        // Inicia o fluxo verificando a Key
         checkKeyStatus()
         
         return true
     }
     
+    // ESSA FUNÇÃO É CHAMADA TODA VEZ QUE O APP VOLTA DO BACKGROUND
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        checkKeyStatus()
+    }
+    
     func checkKeyStatus() {
         if let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
             if Date() < expireDate {
-                loadReactApp()
+                // Key válida
+                if !isWebViewLoaded {
+                    loadReactApp()
+                }
             } else {
+                // Key expirou
                 UserDefaults.standard.removeObject(forKey: "SavedKey")
                 UserDefaults.standard.removeObject(forKey: "ExpireDate")
-                showLoginScreen()
+                if !isShowingLogin {
+                    showLoginScreen()
+                }
             }
         } else {
-            showLoginScreen()
+            // Sem key salva
+            if !isShowingLogin {
+                showLoginScreen()
+            }
         }
     }
     
     func loadReactApp() {
+        isShowingLogin = false
+        isWebViewLoaded = true
+        
         if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html") {
             let url = URL(fileURLWithPath: htmlPath)
             webView?.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
@@ -58,8 +74,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func showLoginScreen() {
+        isShowingLogin = true
+        isWebViewLoaded = false
+        
         let vc = UIViewController()
-        vc.view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0) // ROXO
+        vc.view.backgroundColor = UIColor(red: 0.15, green: 0.0, blue: 0.25, alpha: 1.0)
         
         let titleLabel = UILabel()
         titleLabel.text = "ACESSO PRIVATE"
@@ -168,8 +187,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                             return
                         }
                         
-                        if let days = keyData["expire"] as? Double {
-                            let expireDate = Date().addingTimeInterval(days * 24 * 60 * 60)
+                        // CORREÇÃO DA MATEMÁTICA DE TEMPO AQUI
+                        if let expireAmount = keyData["expire"] as? Double, let type = keyData["type"] as? String {
+                            var timeInterval: TimeInterval = 0
+                            
+                            if type == "hourly" {
+                                timeInterval = expireAmount * 60 * 60 // Horas
+                            } else if type == "daily" {
+                                timeInterval = expireAmount * 24 * 60 * 60 // Dias
+                            } else if type == "weekly" {
+                                timeInterval = expireAmount * 7 * 24 * 60 * 60 // Semanas
+                            } else if type == "monthly" {
+                                timeInterval = 30 * 24 * 60 * 60 // Mês
+                            } else if type == "perm" {
+                                timeInterval = 36500 * 24 * 60 * 60 // Permanente (100 anos)
+                            } else {
+                                timeInterval = expireAmount * 24 * 60 * 60 // Fallback
+                            }
+                            
+                            let expireDate = Date().addingTimeInterval(timeInterval)
                             UserDefaults.standard.set(key, forKey: "SavedKey")
                             UserDefaults.standard.set(expireDate, forKey: "ExpireDate")
                             
@@ -178,7 +214,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                             }
                             onSuccess()
                         } else {
-                            onFailure("Key sem validade definida.")
+                            onFailure("Erro ao ler validade da Key.")
                         }
                     } else {
                         onFailure("Key inválida ou não encontrada.")
