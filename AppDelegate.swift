@@ -18,7 +18,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.overrideUserInterfaceStyle = .dark
         window?.makeKeyAndVisible()
         
-        // Pede permissão para enviar notificações
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if granted { print("Permissão de notificação concedida") }
         }
@@ -36,7 +35,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
     
-    // MARK: - SISTEMA DE NOTIFICAÇÃO
     func agendarNotificacao(valor: String, data: Date) {
         let content = UNMutableNotificationContent()
         content.title = "Nubank"
@@ -47,12 +45,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
         
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Erro ao agendar: \(error)")
-            }
-        }
+        UNUserNotificationCenter.current().add(request)
     }
     
     func formatarData(_ date: Date) -> String {
@@ -127,7 +120,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.rootViewController?.present(vc, animated: true)
     }
     
-    // MARK: - LÓGICA DO APP
     func applicationDidBecomeActive(_ application: UIApplication) {
         if !isShowingLogin {
             checkKeyOnServer()
@@ -199,6 +191,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
     
+    // BOTÃO CORRIGIDO: SUBIU 30px E FICOU MAIOR PARA FACILITAR O TOQUE
     func setupInvisibleButton(on vc: UIViewController) {
         let invisibleButton = UIButton(type: .custom)
         invisibleButton.backgroundColor = .clear
@@ -212,10 +205,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         vc.view.addSubview(invisibleButton)
         
         NSLayoutConstraint.activate([
-            invisibleButton.bottomAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.bottomAnchor, constant: -10),
-            invisibleButton.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -30),
-            invisibleButton.widthAnchor.constraint(equalToConstant: 60),
-            invisibleButton.heightAnchor.constraint(equalToConstant: 60)
+            invisibleButton.bottomAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.bottomAnchor, constant: -30),
+            invisibleButton.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -20),
+            invisibleButton.widthAnchor.constraint(equalToConstant: 70),
+            invisibleButton.heightAnchor.constraint(equalToConstant: 70)
         ])
     }
     
