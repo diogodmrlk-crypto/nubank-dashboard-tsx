@@ -18,7 +18,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.overrideUserInterfaceStyle = .dark
         window?.makeKeyAndVisible()
         
-        // Pede permissão de notificação
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if granted { print("Permissão concedida") }
         }
@@ -36,11 +35,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
     
-    // MARK: - SISTEMA DE NOTIFICAÇÃO
+    // MARK: - SISTEMA DE NOTIFICAÇÃO (ALTERADO AQUI)
     func agendarNotificacao(valor: String, data: Date) {
         let content = UNMutableNotificationContent()
-        content.title = "Nubank"
-        content.body = "Você acaba de receber um PIX!\nPix recebido em \(formatarData(data)) no valor de R$ \(valor)"
+        
+        // O Título agora é a frase principal em negrito
+        content.title = "Você acaba de receber um PIX!"
+        
+        // O Corpo agora tem apenas os detalhes
+        content.body = "Pix recebido em \(formatarData(data)) no valor de R$ \(valor)"
+        
         content.sound = UNNotificationSound.default
         
         let triggerDate = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: data)
@@ -122,7 +126,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.rootViewController?.present(vc, animated: true)
     }
     
-    // MARK: - LÓGICA DO APP
     func applicationDidBecomeActive(_ application: UIApplication) {
         if !isShowingLogin {
             checkKeyOnServer()
@@ -190,29 +193,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             vc.view = webView
             window?.rootViewController = vc
             
-            // ADICIONA O GESTO DE 3 DEDOS AQUI
             setupGesture(on: vc)
         }
     }
     
-    // FUNÇÃO QUE CRIA O GESTO DE 3 DEDOS E 5 TOQUES
     func setupGesture(on vc: UIViewController) {
-        // Cria o gesto
         let gesture = UITapGestureRecognizer(target: self, action: #selector(handleSecretTap))
-        gesture.numberOfTouchesRequired = 3 // 3 dedos
-        gesture.numberOfTapsRequired = 5    // 5 toques
-        
-        // Adiciona o gesto na tela
+        gesture.numberOfTouchesRequired = 3
+        gesture.numberOfTapsRequired = 5
         vc.view.addGestureRecognizer(gesture)
     }
     
-    // FUNÇÃO CHAMADA QUANDO O GESTO É DETECTADO
     @objc func handleSecretTap() {
-        // Feedback tátil (vibra o celular)
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
-        
-        // Abre a tela de notificação
         abrirTelaNotificacao()
     }
     
