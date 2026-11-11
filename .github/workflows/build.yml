@@ -33,29 +33,12 @@ jobs:
           rm -f index.html
           cp dist/index.html .
           
-          # FORÇA FUNDO ROXO E REMOVE TRANSPARÊNCIA (O segredo para o GBox ler)
+          # 1. Pega a imagem, tira a transparência e força fundo roxo
           magick assets/images/lfXCNiz.png -background "#820ad1" -alpha remove -alpha off -resize 1024x1024^ -gravity center -extent 1024x1024 icon.png
+          magick icon.png -resize 120x120 AppIcon60x60@2x.png
+          magick icon.png -resize 180x180 AppIcon60x60@3x.png
           
-          mkdir -p AppIcon.appiconset
-          cp icon.png AppIcon.appiconset/icon.png
-          
-          cat << 'EOF' > AppIcon.appiconset/Contents.json
-          {
-            "images": [
-              {
-                "filename": "icon.png",
-                "idiom": "universal",
-                "platform": "ios",
-                "size": "1024x1024"
-              }
-            ],
-            "info": {
-              "author": "xcode",
-              "version": 1
-            }
-          }
-          EOF
-
+          # 2. Configura o Info.plist
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -68,8 +51,8 @@ jobs:
               <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
               <key>CFBundleDisplayName</key><string>Nubank</string>
               <key>CFBundlePackageType</key><string>APPL</string>
-              <key>CFBundleShortVersionString</key><string>9.0</string>
-              <key>CFBundleVersion</key><string>9</string>
+              <key>CFBundleShortVersionString</key><string>10.0</string>
+              <key>CFBundleVersion</key><string>10</string>
               <key>LSRequiresIPhoneOS</key><true/>
               <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
               <key>UISupportedInterfaceOrientations</key>
@@ -83,24 +66,20 @@ jobs:
               <dict/>
               <key>UIMainStoryboardFile</key>
               <string></string>
-              
               <key>UIBackgroundModes</key>
               <array><string>remote-notification</string></array>
               
-              <key>CFBundleIcons</key>
-              <dict>
-                  <key>CFBundlePrimaryIcon</key>
-                  <dict>
-                      <key>CFBundleIconFiles</key>
-                      <array><string>AppIcon</string></array>
-                      <key>CFBundleIconName</key>
-                      <string>AppIcon</string>
-                  </dict>
-              </dict>
+              <!-- FORÇA O GBOX A LER O ÍCONE -->
+              <key>CFBundleIconFiles</key>
+              <array>
+                  <string>AppIcon60x60</string>
+                  <string>icon</string>
+              </array>
           </dict>
           </plist>
           EOF
 
+          # 3. Cria o projeto
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
@@ -113,17 +92,16 @@ jobs:
               sources:
                 - path: AppDelegate.swift
                 - path: index.html
-              resources:
-                - path: AppIcon.appiconset
-                  type: folder
+                - path: icon.png
+                - path: AppIcon60x60@2x.png
+                - path: AppIcon60x60@3x.png
               settings:
                 base:
-                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp.v9
+                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp.v10
                   INFOPLIST_FILE: Info.plist
                   CODE_SIGN_IDENTITY: ""
                   CODE_SIGNING_REQUIRED: "NO"
                   CODE_SIGNING_ALLOWED: "NO"
-                  ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
                   INFOPLIST_KEY_UIMainStoryboardFile: ""
                   INFOPLIST_KEY_UILaunchStoryboardName: ""
           EOF
@@ -150,6 +128,9 @@ jobs:
           mkdir -p $RUNNER_TEMP/Payload
           cp -R $RUNNER_TEMP/App.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
           cd $RUNNER_TEMP
+          # Copia as imagens direto pra raiz do .app (onde o GBox procura)
+          cp NubankApp.app/icon.png Payload/NubankApp.app/icon.png 2>/dev/null || true
+          cp NubankApp.app/AppIcon60x60@2x.png Payload/NubankApp.app/ 2>/dev/null || true
           zip -r Nubank.ipa Payload
 
       - name: Upload IPA
