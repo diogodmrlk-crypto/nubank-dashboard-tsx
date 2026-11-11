@@ -23,7 +23,7 @@ jobs:
           npm install
           npm run build
 
-      - name: Install XcodeGen and Image Tools
+      - name: Install XcodeGen and ImageMagick
         run: |
           brew install xcodegen
           brew install imagemagick
@@ -33,11 +33,9 @@ jobs:
           rm -f index.html
           cp dist/index.html .
           
-          # 1. Prepara a imagem do ícone
-          # Pega a imagem da pasta assets/images, redimensiona para 1024x1024 e remove transparência
+          # FORÇA FUNDO ROXO E REMOVE TRANSPARÊNCIA (O segredo para o GBox ler)
           magick assets/images/lfXCNiz.png -background "#820ad1" -alpha remove -alpha off -resize 1024x1024^ -gravity center -extent 1024x1024 icon.png
           
-          # 2. Cria a pasta do ícone
           mkdir -p AppIcon.appiconset
           cp icon.png AppIcon.appiconset/icon.png
           
@@ -58,7 +56,6 @@ jobs:
           }
           EOF
 
-          # 3. Cria o Info.plist
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -71,8 +68,8 @@ jobs:
               <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
               <key>CFBundleDisplayName</key><string>Nubank</string>
               <key>CFBundlePackageType</key><string>APPL</string>
-              <key>CFBundleShortVersionString</key><string>1.0</string>
-              <key>CFBundleVersion</key><string>1</string>
+              <key>CFBundleShortVersionString</key><string>9.0</string>
+              <key>CFBundleVersion</key><string>9</string>
               <key>LSRequiresIPhoneOS</key><true/>
               <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
               <key>UISupportedInterfaceOrientations</key>
@@ -104,7 +101,6 @@ jobs:
           </plist>
           EOF
 
-          # 4. Cria o project.yml
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
@@ -122,7 +118,7 @@ jobs:
                   type: folder
               settings:
                 base:
-                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp.final
+                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp.v9
                   INFOPLIST_FILE: Info.plist
                   CODE_SIGN_IDENTITY: ""
                   CODE_SIGNING_REQUIRED: "NO"
