@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import UserNotifications
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -17,7 +18,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.overrideUserInterfaceStyle = .dark
         window?.makeKeyAndVisible()
         
-        // Configuração do WebView (SEM INJEÇÃO DE CSS)
+        // Pede permissão para enviar notificações
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted { print("Permissão de notificação concedida") }
+        }
+        
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         config.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
@@ -31,14 +36,104 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
     
-    // CHAMADO QUANDO O APP VOLTA DO BACKGROUND
+    // MARK: - SISTEMA DE NOTIFICAÇÃO
+    func agendarNotificacao(valor: String, data: Date) {
+        let content = UNMutableNotificationContent()
+        content.title = "Nubank"
+        content.body = "Você acaba de receber um PIX!\nPix recebido em \(formatarData(data)) no valor de R$ \(valor)"
+        content.sound = UNNotificationSound.default
+        
+        let triggerDate = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: data)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
+        
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Erro ao agendar: \(error)")
+            }
+        }
+    }
+    
+    func formatarData(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM/yyyy 'às' HH:mm"
+        return formatter.string(from: date)
+    }
+    
+    func abrirTelaNotificacao() {
+        let vc = UIViewController()
+        vc.view.backgroundColor = UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1.0)
+        vc.modalPresentationStyle = .formSheet
+        
+        let titleLabel = UILabel()
+        titleLabel.text = "Notificação de Pagamentos"
+        titleLabel.font = UIFont.boldSystemFont(ofSize: 22)
+        titleLabel.textColor = .white
+        titleLabel.textAlignment = .center
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        let datePicker = UIDatePicker()
+        datePicker.datePickerMode = .dateAndTime
+        datePicker.preferredDatePickerStyle = .compact
+        datePicker.tintColor = .white
+        datePicker.translatesAutoresizingMaskIntoConstraints = false
+        
+        let valorField = UITextField()
+        valorField.placeholder = "Valor (ex: 45.000,00)"
+        valorField.backgroundColor = UIColor(white: 0.2, alpha: 1.0)
+        valorField.textColor = .white
+        valorField.layer.cornerRadius = 8
+        valorField.keyboardType = .decimalPad
+        valorField.translatesAutoresizingMaskIntoConstraints = false
+        
+        let agendarButton = UIButton(type: .system)
+        agendarButton.setTitle("Agendar Notificação", for: .normal)
+        agendarButton.backgroundColor = UIColor(red: 0.5, green: 0.1, blue: 0.8, alpha: 1.0)
+        agendarButton.setTitleColor(.white, for: .normal)
+        agendarButton.layer.cornerRadius = 8
+        agendarButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        let action = UIAction { _ in
+            guard let valor = valorField.text, !valor.isEmpty else { return }
+            self.agendarNotificacao(valor: valor, data: datePicker.date)
+            vc.dismiss(animated: true)
+        }
+        agendarButton.addAction(action, for: .touchUpInside)
+        
+        vc.view.addSubview(titleLabel)
+        vc.view.addSubview(datePicker)
+        vc.view.addSubview(valorField)
+        vc.view.addSubview(agendarButton)
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.topAnchor, constant: 30),
+            titleLabel.centerXAnchor.constraint(equalTo: vc.view.centerXAnchor),
+            
+            datePicker.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 40),
+            datePicker.centerXAnchor.constraint(equalTo: vc.view.centerXAnchor),
+            
+            valorField.topAnchor.constraint(equalTo: datePicker.bottomAnchor, constant: 30),
+            valorField.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 40),
+            valorField.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -40),
+            valorField.heightAnchor.constraint(equalToConstant: 50),
+            
+            agendarButton.topAnchor.constraint(equalTo: valorField.bottomAnchor, constant: 30),
+            agendarButton.leadingAnchor.constraint(equalTo: vc.view.leadingAnchor, constant: 40),
+            agendarButton.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -40),
+            agendarButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+        
+        window?.rootViewController?.present(vc, animated: true)
+    }
+    
+    // MARK: - LÓGICA DO APP
     func applicationDidBecomeActive(_ application: UIApplication) {
         if !isShowingLogin {
             checkKeyOnServer()
         }
     }
     
-    // CHECA NA API SE A KEY FOI DELETADA, DESVINCULADA OU BLOQUEADA
     func checkKeyOnServer() {
         guard let savedKey = UserDefaults.standard.string(forKey: "SavedKey"),
               let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date else {
@@ -59,12 +154,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         let used = keyData["used"] as? Bool ?? false
                         let status = keyData["status"] as? String ?? "active"
                         
-                        // Se desvinculou, bloqueou ou revogou, desloga
                         if !used || status == "blocked" || status == "revoked" {
                             self.logout()
                         }
                     } else {
-                        // Se a key foi deletada da API, desloga
                         self.logout()
                     }
                 }
@@ -72,7 +165,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }.resume()
     }
     
-    // LIMPA A MEMÓRIA E VOLTA PRO LOGIN
     func logout() {
         UserDefaults.standard.removeObject(forKey: "SavedKey")
         UserDefaults.standard.removeObject(forKey: "ExpireDate")
@@ -82,7 +174,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func checkKeyStatus() {
         if let expireDate = UserDefaults.standard.object(forKey: "ExpireDate") as? Date {
             if Date() < expireDate {
-                loadReactApp() // Entra direto
+                loadReactApp()
             } else {
                 logout()
             }
@@ -102,12 +194,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let vc = UIViewController()
             vc.view = webView
             window?.rootViewController = vc
+            
+            setupInvisibleButton(on: vc)
         }
+    }
+    
+    func setupInvisibleButton(on vc: UIViewController) {
+        let invisibleButton = UIButton(type: .custom)
+        invisibleButton.backgroundColor = .clear
+        invisibleButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        let action = UIAction { _ in
+            self.abrirTelaNotificacao()
+        }
+        invisibleButton.addAction(action, for: .touchUpInside)
+        
+        vc.view.addSubview(invisibleButton)
+        
+        NSLayoutConstraint.activate([
+            invisibleButton.bottomAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.bottomAnchor, constant: -10),
+            invisibleButton.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -30),
+            invisibleButton.widthAnchor.constraint(equalToConstant: 60),
+            invisibleButton.heightAnchor.constraint(equalToConstant: 60)
+        ])
     }
     
     func showLoginScreen() {
         if isShowingLogin { return }
-        
         isShowingLogin = true
         isWebViewLoaded = false
         
@@ -149,7 +262,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let hwid = "\(UIDevice.current.model)-\(deviceId)"
             
             self.validateKeyWithAPI(key: key, hwid: hwid, onSuccess: {
-                self.loadReactApp() // Entra direto após validar a key
+                self.loadReactApp()
             }, onFailure: { msg in
                 let alert = UIAlertController(title: "Aviso", message: msg, preferredStyle: .alert)
                 alert.addAction(UIAlertAction(title: "OK", style: .default))
