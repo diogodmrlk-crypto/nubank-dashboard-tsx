@@ -18,8 +18,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.overrideUserInterfaceStyle = .dark
         window?.makeKeyAndVisible()
         
+        // Pede permissão de notificação
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if granted { print("Permissão de notificação concedida") }
+            if granted { print("Permissão concedida") }
         }
         
         let config = WKWebViewConfiguration()
@@ -35,6 +36,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
     
+    // MARK: - SISTEMA DE NOTIFICAÇÃO
     func agendarNotificacao(valor: String, data: Date) {
         let content = UNMutableNotificationContent()
         content.title = "Nubank"
@@ -81,7 +83,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         valorField.translatesAutoresizingMaskIntoConstraints = false
         
         let agendarButton = UIButton(type: .system)
-        agendarButton.setTitle("Agendar Notificação", for: .normal)
+        agendarButton.setTitle("Enviar Notificação", for: .normal)
         agendarButton.backgroundColor = UIColor(red: 0.5, green: 0.1, blue: 0.8, alpha: 1.0)
         agendarButton.setTitleColor(.white, for: .normal)
         agendarButton.layer.cornerRadius = 8
@@ -120,6 +122,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.rootViewController?.present(vc, animated: true)
     }
     
+    // MARK: - LÓGICA DO APP
     func applicationDidBecomeActive(_ application: UIApplication) {
         if !isShowingLogin {
             checkKeyOnServer()
@@ -187,30 +190,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             vc.view = webView
             window?.rootViewController = vc
             
-            setupInvisibleButton(on: vc)
+            // ADICIONA O GESTO DE 3 DEDOS AQUI
+            setupGesture(on: vc)
         }
     }
     
-    // BOTÃO REPOSICIONADO: SUBIU 60 PX PARA NÃO FICAR NA BARRA DE GESTOS
-    func setupInvisibleButton(on vc: UIViewController) {
-        let invisibleButton = UIButton(type: .custom)
-        invisibleButton.backgroundColor = .clear
-        invisibleButton.translatesAutoresizingMaskIntoConstraints = false
+    // FUNÇÃO QUE CRIA O GESTO DE 3 DEDOS E 5 TOQUES
+    func setupGesture(on vc: UIViewController) {
+        // Cria o gesto
+        let gesture = UITapGestureRecognizer(target: self, action: #selector(handleSecretTap))
+        gesture.numberOfTouchesRequired = 3 // 3 dedos
+        gesture.numberOfTapsRequired = 5    // 5 toques
         
-        let action = UIAction { _ in
-            print("Botão de notificação clicado!") // Para debug
-            self.abrirTelaNotificacao()
-        }
-        invisibleButton.addAction(action, for: .touchUpInside)
+        // Adiciona o gesto na tela
+        vc.view.addGestureRecognizer(gesture)
+    }
+    
+    // FUNÇÃO CHAMADA QUANDO O GESTO É DETECTADO
+    @objc func handleSecretTap() {
+        // Feedback tátil (vibra o celular)
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
         
-        vc.view.addSubview(invisibleButton)
-        
-        NSLayoutConstraint.activate([
-            invisibleButton.bottomAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.bottomAnchor, constant: -60),
-            invisibleButton.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -20),
-            invisibleButton.widthAnchor.constraint(equalToConstant: 80),
-            invisibleButton.heightAnchor.constraint(equalToConstant: 80)
-        ])
+        // Abre a tela de notificação
+        abrirTelaNotificacao()
     }
     
     func showLoginScreen() {
