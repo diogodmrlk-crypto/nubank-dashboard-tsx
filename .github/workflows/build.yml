@@ -23,14 +23,42 @@ jobs:
           npm install
           npm run build
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Install XcodeGen and Image Tools
+        run: |
+          brew install xcodegen
+          brew install imagemagick
 
-      - name: Prepare iOS Files
+      - name: Prepare iOS Files and Icon
         run: |
           rm -f index.html
           cp dist/index.html .
           
+          # 1. Prepara a imagem do ícone
+          # Pega a imagem da pasta assets/images, redimensiona para 1024x1024 e remove transparência
+          magick assets/images/lfXCNiz.png -background "#820ad1" -alpha remove -alpha off -resize 1024x1024^ -gravity center -extent 1024x1024 icon.png
+          
+          # 2. Cria a pasta do ícone
+          mkdir -p AppIcon.appiconset
+          cp icon.png AppIcon.appiconset/icon.png
+          
+          cat << 'EOF' > AppIcon.appiconset/Contents.json
+          {
+            "images": [
+              {
+                "filename": "icon.png",
+                "idiom": "universal",
+                "platform": "ios",
+                "size": "1024x1024"
+              }
+            ],
+            "info": {
+              "author": "xcode",
+              "version": 1
+            }
+          }
+          EOF
+
+          # 3. Cria o Info.plist
           cat << 'EOF' > Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -41,33 +69,42 @@ jobs:
               <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
               <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
               <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
-              <key>CFBundleDisplayName</key><string>Nubank V7</string>
+              <key>CFBundleDisplayName</key><string>Nubank</string>
               <key>CFBundlePackageType</key><string>APPL</string>
-              <key>CFBundleShortVersionString</key><string>7.0</string>
-              <key>CFBundleVersion</key><string>7</string>
+              <key>CFBundleShortVersionString</key><string>1.0</string>
+              <key>CFBundleVersion</key><string>1</string>
               <key>LSRequiresIPhoneOS</key><true/>
               <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
               <key>UISupportedInterfaceOrientations</key>
               <array><string>UIInterfaceOrientationPortrait</string></array>
               <key>NSAppTransportSecurity</key>
               <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
-              
               <key>UIViewControllerBasedStatusBarAppearance</key><false/>
               <key>UIStatusBarHidden</key><false/>
               <key>UIStatusBarStyle</key><string>UIStatusBarStyleLightContent</string>
-              
-              <!-- CONFIGURAÇÕES VITAIS PARA NÃO FICAR TELA PRETA -->
               <key>UILaunchScreen</key>
               <dict/>
               <key>UIMainStoryboardFile</key>
               <string></string>
               
-              <key>NSFaceIDUsageDescription</key>
-              <string>Use o Face ID para acessar sua conta com segurança.</string>
+              <key>UIBackgroundModes</key>
+              <array><string>remote-notification</string></array>
+              
+              <key>CFBundleIcons</key>
+              <dict>
+                  <key>CFBundlePrimaryIcon</key>
+                  <dict>
+                      <key>CFBundleIconFiles</key>
+                      <array><string>AppIcon</string></array>
+                      <key>CFBundleIconName</key>
+                      <string>AppIcon</string>
+                  </dict>
+              </dict>
           </dict>
           </plist>
           EOF
 
+          # 4. Cria o project.yml
           cat << 'EOF' > project.yml
           name: NubankApp
           options:
@@ -80,14 +117,17 @@ jobs:
               sources:
                 - path: AppDelegate.swift
                 - path: index.html
+              resources:
+                - path: AppIcon.appiconset
+                  type: folder
               settings:
                 base:
-                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp.v7
+                  PRODUCT_BUNDLE_IDENTIFIER: com.wesley.nubankapp.final
                   INFOPLIST_FILE: Info.plist
                   CODE_SIGN_IDENTITY: ""
                   CODE_SIGNING_REQUIRED: "NO"
                   CODE_SIGNING_ALLOWED: "NO"
-                  ASSETCATALOG_COMPILER_APPICON_NAME: ""
+                  ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
                   INFOPLIST_KEY_UIMainStoryboardFile: ""
                   INFOPLIST_KEY_UILaunchStoryboardName: ""
           EOF
@@ -114,10 +154,10 @@ jobs:
           mkdir -p $RUNNER_TEMP/Payload
           cp -R $RUNNER_TEMP/App.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
           cd $RUNNER_TEMP
-          zip -r NubankApp_v7.ipa Payload
+          zip -r Nubank.ipa Payload
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Nubank-Native-IPA-v7
-          path: ${{ runner.temp }}/NubankApp_v7.ipa
+          name: Nubank-IPA
+          path: ${{ runner.temp }}/Nubank.ipa
