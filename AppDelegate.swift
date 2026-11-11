@@ -191,13 +191,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
     
-    // BOTÃO CORRIGIDO: SUBIU 30px E FICOU MAIOR PARA FACILITAR O TOQUE
+    // BOTÃO REPOSICIONADO: SUBIU 60 PX PARA NÃO FICAR NA BARRA DE GESTOS
     func setupInvisibleButton(on vc: UIViewController) {
         let invisibleButton = UIButton(type: .custom)
         invisibleButton.backgroundColor = .clear
         invisibleButton.translatesAutoresizingMaskIntoConstraints = false
         
         let action = UIAction { _ in
+            print("Botão de notificação clicado!") // Para debug
             self.abrirTelaNotificacao()
         }
         invisibleButton.addAction(action, for: .touchUpInside)
@@ -205,10 +206,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         vc.view.addSubview(invisibleButton)
         
         NSLayoutConstraint.activate([
-            invisibleButton.bottomAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.bottomAnchor, constant: -30),
+            invisibleButton.bottomAnchor.constraint(equalTo: vc.view.safeAreaLayoutGuide.bottomAnchor, constant: -60),
             invisibleButton.trailingAnchor.constraint(equalTo: vc.view.trailingAnchor, constant: -20),
-            invisibleButton.widthAnchor.constraint(equalToConstant: 70),
-            invisibleButton.heightAnchor.constraint(equalToConstant: 70)
+            invisibleButton.widthAnchor.constraint(equalToConstant: 80),
+            invisibleButton.heightAnchor.constraint(equalToConstant: 80)
         ])
     }
     
